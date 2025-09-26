@@ -41,7 +41,7 @@ export default function WalletConnect(){
             <div className="flex items-center space-x-3">
             <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse transition-transform duration-100"></div>
             </div>
-            {copied ? <Check className="text-green-400" /> : <Copy className={`${theme == "dark" ? "text-gray-400" : "text-black"}`} />}
+                {copied ? <Check className="text-green-400" /> : <Copy className={`${theme == "dark" ? "text-gray-400" : "text-black"}`} />}
             <button onClick={copyAddress} className={`flex space-x-3 items-center ${theme == "dark" ? "bg-gray-800 hover:bg-gray-700" : "bg-gray-200 hover:bg-gray-300"} px-3 py-2 rounded-lg transition-colors`}>
             </button>
             <DynamicWalletMultiButton/>
