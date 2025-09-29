@@ -17,6 +17,11 @@ pub struct Product {
     pub creation_bump:u8,
 }
 
+#[account]
+pub struct ProductsList{
+    pub products:Vec<Pubkey>,
+}
+
 #[derive(Clone, AnchorSerialize, AnchorDeserialize)]
 pub enum Category {
     Electronics,
