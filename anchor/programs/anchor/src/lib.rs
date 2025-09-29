@@ -12,12 +12,6 @@ pub mod ecom_dapp {
     use crate::states::{Category, Division};
 
     use super::*;
-
-    pub fn initialize(ctx: Context<Initialize>) -> Result<()> {
-        msg!("Greetings from: {:?}", ctx.program_id);
-        Ok(())
-    }
-
     pub fn create_product(
         ctx: Context<CreateProduct>,
         product_name:String,
@@ -30,12 +24,10 @@ pub mod ecom_dapp {
         product_imgurl:String,    
     ) -> Result<()> {
         ctx.accounts.create_product(
-            product_name, product_short_description, price, category, division, product_imgurl, seller_name, creation_bump)?;
+            product_name, product_short_description, price, category, division, seller_name, product_imgurl, creation_bump
+        )?;
+        let product_key = ctx.accounts.product.key();
+        ctx.accounts.product_list.products.push(product_key);
         Ok(())
     }
-}
-
-#[derive(Accounts)]
-pub struct Initialize {
-
 }
