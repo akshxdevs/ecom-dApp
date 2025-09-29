@@ -1,5 +1,5 @@
 use anchor_lang::prelude::*;
-use crate::states::{Category, Division, Product, Stock};
+use crate::states::{Category, Division, Product, ProductsList, Stock};
 
 
 impl <'info> CreateProduct<'info> {
@@ -29,6 +29,8 @@ impl <'info> CreateProduct<'info> {
             stock_status: Stock::InStock,
             creation_bump  
         });
+
+        
         Ok(())
     }
 }
@@ -61,6 +63,13 @@ pub struct CreateProduct<'info> {
               + 1
     )]
     pub product: Account<'info, Product>,
+
+    #[account(
+        mut,
+        seeds = [b"product_list"], 
+        bump
+    )]
+    pub product_list:Account<'info,ProductsList>,
 
     pub system_program: Program<'info, System>,
 }
