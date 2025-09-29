@@ -1,6 +1,6 @@
 use anchor_lang::prelude::*;
 
-use crate::states::cart::{Cart, Cartlist};
+use crate::states::cart::{Cart, Cartlist, Stock};
 
 
 
@@ -23,6 +23,7 @@ impl <'info> AddToCart <'info> {
                 seller_pubkey, 
                 product_imgurl,
                 price, 
+                stock_status:Stock::InStock,
                 cart_bump,
             });
 
@@ -43,13 +44,13 @@ pub struct AddToCart<'info> {
         seeds = [b"cart", consumer.key().as_ref(), &product_id.to_le_bytes()],
         bump,
         space = 8
-            + 4 /* product_id */
-            + 4 + product_name.len() /* product_name */
-            + 4 /* quantity */
-            + 32 /* seller_pubkey */
-            + 4 + product_imgurl.len() /* product_imgurl */
-            + 4 /* price */
-            + 1 /* cart_bump */
+            + 4 
+            + 4 + product_name.len() 
+            + 4 
+            + 32 
+            + 4 + product_imgurl.len() 
+            + 4 
+            + 1 
     )]
     pub cart: Account<'info, Cart>,
     #[account(
