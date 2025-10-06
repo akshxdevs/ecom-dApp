@@ -58,4 +58,34 @@ pub mod ecom_dapp {
         ctx.accounts.cart_list.cart_list.push(cart_key);
         Ok(())
     }
+
+    pub fn create_payment(
+        ctx: Context<CreatePayment>,
+        payment_amount: u32,
+        product_pubkey:Pubkey,
+        tx_signature:Option<String>,
+    ) -> Result<()> {
+       ctx.accounts.create_payment(
+        payment_amount, 
+        product_pubkey, 
+        tx_signature, 
+        ctx.bumps.payments,
+    )?;
+        Ok(())
+    }
+
+    pub fn create_order(
+        ctx: Context<CreateOrder>,
+        product_id:u32,
+        payment_id:u32,
+        tracking_id:u32,
+    )->Result<()> {
+        ctx.accounts.create_order(
+            product_id, 
+            payment_id, 
+            tracking_id, 
+            ctx.bumps.order
+        )?;
+        Ok(())
+    }
 }
