@@ -21,6 +21,15 @@ pub struct Product {
 pub struct ProductsList{
     pub products:Vec<Pubkey>,
 }
+#[event]
+pub struct ProductCreated {
+    pub product_pubkey: Pubkey,
+    pub seller: Pubkey,
+    pub product_name: String,
+    pub price: u32,
+    pub category: Category,
+    pub division: Division,
+}
 
 #[derive(Clone, AnchorSerialize, AnchorDeserialize)]
 pub enum Category {
