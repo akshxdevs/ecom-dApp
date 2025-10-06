@@ -1,8 +1,6 @@
 use anchor_lang::prelude::*;
 
-use crate::states::cart::{Cart, Cartlist, Stock};
-
-
+use crate::states::cart::{Cart, CartCreated, Cartlist, Stock};
 
 impl <'info> AddToCart <'info> {
     pub fn add_to_cart(
@@ -18,16 +16,20 @@ impl <'info> AddToCart <'info> {
         self.cart.set_inner(Cart 
             { 
                 product_id, 
-                product_name, 
-                quantity, 
+                product_name:product_name.clone(), 
+                quantity:quantity.clone(), 
                 seller_pubkey, 
                 product_imgurl,
-                price, 
+                price:price.clone(), 
                 stock_status:Stock::InStock,
                 cart_bump,
             });
-
-            
+            emit!(CartCreated{
+                product_name,
+                price,
+                quantity,
+                seller:self.cart.seller_pubkey,
+            });
         Ok(())
     }
 }
