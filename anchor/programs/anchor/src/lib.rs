@@ -73,7 +73,24 @@ pub mod ecom_dapp {
     )?;
         Ok(())
     }
-
+    pub fn create_escrow(
+        ctx: Context<CreateEscrow>,
+        buyer_pubkey:Pubkey,
+        seller_pubkey:Pubkey,
+        product_id:u32,
+        payment_id:u32,
+        amount:u64,
+    )-> Result<()> {
+        ctx.accounts.create_escrow(
+            buyer_pubkey, 
+            seller_pubkey, 
+            product_id, 
+            payment_id, 
+            amount, 
+            ctx.bumps.escrow
+        )?;
+        Ok(())
+    }
     pub fn create_order(
         ctx: Context<CreateOrder>,
         product_id:u32,
@@ -88,4 +105,6 @@ pub mod ecom_dapp {
         )?;
         Ok(())
     }
+
+
 }
