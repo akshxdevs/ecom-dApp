@@ -1,5 +1,5 @@
 use anchor_lang::prelude::*;
-use crate::states::{Category, Division, Product, ProductsList, Stock};
+use crate::states::{Category, Division, Product, ProductCreated, ProductsList, Stock};
 
 
 impl <'info> CreateProduct<'info> {
@@ -16,9 +16,9 @@ impl <'info> CreateProduct<'info> {
     ) -> Result<()> {
         self.product.set_inner(Product { 
             product_id: 0, 
-            product_name, 
-            category , 
-            division, 
+            product_name:product_name.clone(), 
+            category:category.clone() , 
+            division:division.clone(), 
             quantity: 100, 
             seller_pubkey:self.seller.key().clone(), 
             seller_name, 
@@ -29,8 +29,14 @@ impl <'info> CreateProduct<'info> {
             stock_status: Stock::InStock,
             creation_bump  
         });
-
-        
+        emit!(ProductCreated{
+            product_pubkey:self.product.key(),
+            seller:self.seller.key(),
+            product_name,
+            price,
+            category,
+            division
+        });
         Ok(())
     }
 }
