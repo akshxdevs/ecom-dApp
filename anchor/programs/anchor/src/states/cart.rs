@@ -16,7 +16,13 @@ pub struct Cart{
 pub struct Cartlist{
     pub cart_list: Vec<Pubkey>, 
 }
-
+#[event]
+pub struct CartCreated {
+    pub seller: Pubkey,
+    pub quantity: u32,
+    pub product_name: String,
+    pub price: u32,
+}
 #[derive(AnchorDeserialize,AnchorSerialize,Clone)]
 pub enum Stock {
     OutOfStock,
