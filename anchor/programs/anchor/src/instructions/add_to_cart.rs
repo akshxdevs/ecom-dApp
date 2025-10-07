@@ -16,20 +16,21 @@ impl <'info> AddToCart <'info> {
         self.cart.set_inner(Cart 
             { 
                 product_id, 
-                product_name:product_name.clone(), 
-                quantity:quantity.clone(), 
+                product_name: product_name.clone(),
+                quantity, 
                 seller_pubkey, 
-                product_imgurl,
-                price:price.clone(), 
-                stock_status:Stock::InStock,
+                product_imgurl: product_imgurl.clone(),
+                price, 
+                stock_status: Stock::InStock,
                 cart_bump,
             });
-            emit!(CartCreated{
-                product_name,
-                price,
-                quantity,
-                seller:self.cart.seller_pubkey,
-            });
+
+        emit!(CartCreated{
+            product_name,
+            price,
+            quantity,
+            seller:self.cart.seller_pubkey,
+        });
         Ok(())
     }
 }
@@ -46,13 +47,14 @@ pub struct AddToCart<'info> {
         seeds = [b"cart", consumer.key().as_ref(), &product_id.to_le_bytes()],
         bump,
         space = 8
-            + 4 
-            + 4 + product_name.len() 
-            + 4 
-            + 32 
-            + 4 + product_imgurl.len() 
-            + 4 
-            + 1 
+            + 4 /* product_id */
+            + 4 + product_name.len() /* product_name */
+            + 4 /* quantity */
+            + 32 /* seller_pubkey */
+            + 4 + product_imgurl.len() /* product_imgurl */
+            + 4 /* price */
+            + 1 /* stock_status */
+            + 1 /* cart_bump */
     )]
     pub cart: Account<'info, Cart>,
     #[account(
