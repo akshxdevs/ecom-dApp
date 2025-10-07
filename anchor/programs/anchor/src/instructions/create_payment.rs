@@ -1,7 +1,9 @@
 use anchor_lang::prelude::*;
 use anchor_spl::token::{self, Token, Transfer};
-use crate::states::{escrow::{Escrow, EscrowStatus}, payment::{Payment, PaymentMethod, PaymentStatus}};
+use crate::{error::EcomError, states::{cart::Cart, escrow::{Escrow, EscrowStatus}, payment::{Payment, PaymentMethod, PaymentStatus}}};
 use anchor_lang::solana_program::hash::{self};
+
+
 #[derive(Accounts)]
 pub struct CreatePayment<'info>{
     #[account(mut)]
@@ -34,17 +36,18 @@ pub struct CreateEscrow<'info>{
 
     #[account(mut)]
     pub payment:Account<'info,Payment>,
-
-    //CHECKS: User Token Account
+    #[account(mut)]
+    pub cart:Account<'info,Cart>,
+    ///CHECK: User Token Account
     #[account(mut)]
     pub user_ata: AccountInfo<'info>,
-    //CHECKS: Escrow Token Account
+    ///CHECK: Escrow Token Account
     #[account(mut)]
     pub escrow_ata: AccountInfo<'info>,
-    //CHECKS: Buyer Token Account
+    ///CHECK: Buyer Token Account
     #[account(mut)]
     pub buyer_ata: AccountInfo<'info>,
-    //CHECKS: Seller Token Account
+    ///CHECK: Seller Token Account
     #[account(mut)]
     pub seller_ata: AccountInfo<'info>,
 
@@ -56,20 +59,22 @@ pub struct CreateEscrow<'info>{
 impl<'info> CreatePayment<'info>{
     pub fn create_payment(
         &mut self,
-        payment_amount: u32,
+        payment_amount: u64,
         product_pubkey:Pubkey,
         tx_signature:Option<String>,
         payment_bump:u8,
     ) -> Result<()> {
         let clock = Clock::get()?;
+
         let seed_data = [
             self.signer.key().as_ref(),
             &clock.unix_timestamp.to_le_bytes(),
         ].concat();
         let hash = hash::hash(&seed_data);
         let payment_id:[u8;16] = hash.to_bytes()[..16]
-        .try_into()
-        .map_err(|_| ProgramError::InvalidInstructionData)?;
+            .try_into()
+            .map_err(|_| ProgramError::InvalidInstructionData)?;
+
         self.payments.set_inner(
             Payment { 
                 payment_id: payment_id, 
@@ -91,8 +96,8 @@ impl <'info> CreateEscrow<'info> {
         &mut self,
         buyer_pubkey:Pubkey,
         seller_pubkey:Pubkey,
-        product_id:u32,
-        payment_id:u32,
+        product_id:[u8;16],
+        payment_id:[u8;16],
         amount:u64,
         escrow_bump:u8,
     )->Result<()> {
@@ -107,19 +112,27 @@ impl <'info> CreateEscrow<'info> {
             release_fund: false, 
             time_stamp: clock.unix_timestamp, 
             update_timestamp :clock.unix_timestamp, 
-            escrow_status:EscrowStatus::WaitingForSwap, 
+            escrow_status:EscrowStatus::SwapPending, 
             escrow_bump,
         });
 
         Ok(())
     }
-
+     
     pub fn deposite_escrow(
         &mut self,
         product_id:u32,
         escrow_bump:u8,
-        amount:u64,
     )-> Result<()> {
+        let payment = &mut self.payment;
+        let escrow = &mut self.escrow;
+        let amount = payment.payment_amount;
+        
+        require!(
+            payment.payment_status == PaymentStatus::Pending,
+            EcomError::EscrowError
+        );
+
         let cpi_accounts = Transfer{
             from:self.buyer_ata.to_account_info(),
             to:self.escrow_ata.to_account_info(),
@@ -139,6 +152,10 @@ impl <'info> CreateEscrow<'info> {
             signer_seeds
         );
         token::transfer(cpi_ctx, amount)?;
+
+        payment.payment_status = PaymentStatus::Success;
+        escrow.escrow_status = EscrowStatus::FundsReceived;
+        escrow.release_fund = true;
         Ok(())
     }
 
@@ -146,12 +163,22 @@ impl <'info> CreateEscrow<'info> {
         &mut self,
         product_id:u32,
         escrow_bump:u8,
-        amount:u64,
     )-> Result<()> {
+        let payment = &mut self.payment;
+        let escrow = &mut self.escrow;
+        let amount = payment.payment_amount;
+
+        require!(
+            payment.payment_status == PaymentStatus::Success
+            && payment.payment_method == PaymentMethod::SOL,
+            EcomError::InvalidPayment
+        );
+        require!(escrow.release_fund == false,EcomError::FundsNotFound);
+        
         let cpi_accounts = Transfer{
             from:self.escrow_ata.to_account_info(),
             to:self.seller_ata.to_account_info(),
-            authority: self.escrow.to_account_info(),
+            authority: escrow.to_account_info(),
         };
         let cpi_programs = self.token_program.to_account_info();
         let seeds: &[&[u8]] = &[
@@ -167,6 +194,9 @@ impl <'info> CreateEscrow<'info> {
             signer_seeds
         );
         token::transfer(cpi_ctx, amount)?;
+
+        payment.payment_status = PaymentStatus::Success;
+        escrow.escrow_status = EscrowStatus::TransferSuccess;
         Ok(())
     }
 }
