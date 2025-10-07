@@ -1,15 +1,20 @@
 use anchor_lang::prelude::*;
 
 #[account]
+#[derive(InitSpace)]
 pub struct Product {
     pub product_id:  [u8; 16] ,
+    #[max_len(50)]
     pub product_name: String,
     pub category: Category,
     pub division: Division,
     pub quantity: u32,
     pub seller_pubkey: Pubkey,
+    #[max_len(50)]
     pub seller_name: String,
+    #[max_len(200)]
     pub product_short_description: String,
+    #[max_len(200)]
     pub product_imgurl: String,
     pub price: u32,
     pub rating: f32,
@@ -18,7 +23,9 @@ pub struct Product {
 }
 
 #[account]
+#[derive(InitSpace)]
 pub struct ProductsList{
+    #[max_len(40)]
     pub products:Vec<Pubkey>,
 }
 #[event]
@@ -31,7 +38,7 @@ pub struct ProductCreated {
     pub division: Division,
 }
 
-#[derive(Clone, AnchorSerialize, AnchorDeserialize)]
+#[derive(Clone, AnchorSerialize, AnchorDeserialize, InitSpace)]
 pub enum Category {
     Electronics,
     BeautyAndPersonalCare,
@@ -40,7 +47,7 @@ pub enum Category {
     GroceryAndKitchen,
 }
 
-#[derive(Clone, AnchorSerialize, AnchorDeserialize)]
+#[derive(Clone, AnchorSerialize, AnchorDeserialize, InitSpace)]
 pub enum Division {
     Mobile,
     Laptop,
@@ -49,7 +56,7 @@ pub enum Division {
     ComputerPeripherals,
 }
 
-#[derive(Clone, AnchorSerialize, AnchorDeserialize)]
+#[derive(Clone, AnchorSerialize, AnchorDeserialize, InitSpace)]
 pub enum Stock {
     OutOfStock,
     InStock,
