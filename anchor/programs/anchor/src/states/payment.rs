@@ -4,7 +4,7 @@ use anchor_lang::prelude::*;
 #[derive(InitSpace)]
 pub struct Payment{
     pub payment_id: [u8;16],
-    pub payment_amount: u32,
+    pub payment_amount: u64,
     pub product_pubkey:Pubkey,
     pub payment_method:PaymentMethod,
     pub payment_status:PaymentStatus,
@@ -14,7 +14,7 @@ pub struct Payment{
     pub payment_bump:u8,
 }
 
-#[derive(Clone, AnchorSerialize, AnchorDeserialize, InitSpace)]
+#[derive(Clone, AnchorSerialize, AnchorDeserialize, InitSpace, PartialEq, Eq)]
 pub enum PaymentMethod {
     SOL,
     ETH,
@@ -23,7 +23,7 @@ pub enum PaymentMethod {
     USDC
 }
 
-#[derive(Clone, AnchorSerialize, AnchorDeserialize, InitSpace)]
+#[derive(Clone, AnchorSerialize, AnchorDeserialize, InitSpace, PartialEq, Eq)]
 pub enum PaymentStatus {
     Success,
     Pending,
