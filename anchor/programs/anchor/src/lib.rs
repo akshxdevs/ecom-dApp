@@ -2,16 +2,16 @@
 use anchor_lang::prelude::*;
 mod instructions;
 mod states;
+mod error;
 use crate::instructions::*;
 use crate::states::{Category,Division};
 
-declare_id!("4ueHQod8MRop3TfjKwhyni58TKtVqFHHLX4cAyEN8SLn");
+declare_id!("DucWUpF1i6wrJCaV8sWnLC6Kcu3XbBg7k3zD3rPvZE9q");
 
 #[program]
 pub mod ecom_dapp {
-    use crate::states::{Category, Division};
-
     use super::*;
+
     pub fn create_product(
         ctx: Context<CreateProduct>,
         product_name:String,
@@ -61,7 +61,7 @@ pub mod ecom_dapp {
 
     pub fn create_payment(
         ctx: Context<CreatePayment>,
-        payment_amount: u32,
+        payment_amount: u64,
         product_pubkey:Pubkey,
         tx_signature:Option<String>,
     ) -> Result<()> {
@@ -77,8 +77,8 @@ pub mod ecom_dapp {
         ctx: Context<CreateEscrow>,
         buyer_pubkey:Pubkey,
         seller_pubkey:Pubkey,
-        product_id:u32,
-        payment_id:u32,
+        product_id:[u8;16],
+        payment_id:[u8;16],
         amount:u64,
     )-> Result<()> {
         ctx.accounts.create_escrow(
