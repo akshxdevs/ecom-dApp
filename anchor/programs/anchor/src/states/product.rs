@@ -2,7 +2,7 @@ use anchor_lang::prelude::*;
 
 #[account]
 pub struct Product {
-    pub product_id: u32,
+    pub product_id:  [u8; 16] ,
     pub product_name: String,
     pub category: Category,
     pub division: Division,
