@@ -3,10 +3,10 @@ use anchor_lang::prelude::*;
 #[account]
 #[derive(InitSpace)]
 pub struct Order{
-    pub order_id:u32,
-    pub product_id:u32,
-    pub payment_id:u32,
-    pub tracking_id:u32,
+    pub order_id:[u8;16],
+    pub product_id:[u8;16],
+    pub payment_id:[u8;16],
+    pub tracking_id:[u8;16],
     pub order_status:OrderStatus,
     pub order_tracking:OrderTracking,
     pub created_at: i64,
@@ -23,6 +23,7 @@ pub enum OrderStatus {
 }
 #[derive(Clone,AnchorDeserialize,AnchorSerialize,InitSpace)]
 pub enum OrderTracking {
+    WatingForOrders,
     Booked,
     InTransit,
     Shipped,

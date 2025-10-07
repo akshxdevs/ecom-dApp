@@ -1,6 +1,6 @@
 use anchor_lang::prelude::*;
 use crate::states::{cart::Cart, order::{Order, OrderStatus, OrderTracking}, payment::Payment};
-
+use anchor_lang::solana_program::hash::{self};
 #[derive(Accounts)]
 pub struct CreateOrder<'info>{
     #[account(mut)]
@@ -24,19 +24,28 @@ pub struct CreateOrder<'info>{
 impl<'info> CreateOrder<'info> {
     pub fn create_order(
         &mut self,
-        product_id:u32,
-        payment_id:u32,
-        tracking_id:u32,
+        product_id:[u8;16],
+        payment_id:[u8;16],
+        tracking_id:[u8;16],
         order_bump:u8,
     ) -> Result<()> {
         let clock = Clock::get()?;
+
+        let seed_data = [
+            self.signer.key().as_ref(),
+            &clock.unix_timestamp.to_le_bytes(),
+        ].concat();
+        let hash = hash::hash(&seed_data);
+        let order_id = hash.to_bytes()[..16]
+            .try_into()
+            .map_err(|_| ProgramError::InvalidInstructionData)?;
         self.order.set_inner(Order { 
-            order_id: 0,
+            order_id: order_id,
             product_id , 
             payment_id, 
             tracking_id , 
             order_status:OrderStatus::Pending, 
-            order_tracking:OrderTracking::Booked, 
+            order_tracking:OrderTracking::WatingForOrders, 
             created_at:clock.unix_timestamp, 
             updated_at:clock.unix_timestamp, 
             order_bump,

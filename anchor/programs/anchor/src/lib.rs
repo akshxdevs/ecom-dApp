@@ -37,7 +37,7 @@ pub mod ecom_dapp {
     }
 
     pub fn add_to_cart(
-        mut ctx: Context<AddToCart>,
+        ctx: Context<AddToCart>,
         product_id: u32,
         product_name: String,
         quantity: u32,
@@ -93,9 +93,9 @@ pub mod ecom_dapp {
     }
     pub fn create_order(
         ctx: Context<CreateOrder>,
-        product_id:u32,
-        payment_id:u32,
-        tracking_id:u32,
+        product_id:[u8;16],
+        payment_id:[u8;16],
+        tracking_id:[u8;16],
     )->Result<()> {
         ctx.accounts.create_order(
             product_id, 

@@ -1,8 +1,7 @@
 use anchor_lang::prelude::*;
 use anchor_spl::token::{self, Token, Transfer};
-
 use crate::states::{escrow::{Escrow, EscrowStatus}, payment::{Payment, PaymentMethod, PaymentStatus}};
-
+use anchor_lang::solana_program::hash::{self};
 #[derive(Accounts)]
 pub struct CreatePayment<'info>{
     #[account(mut)]
@@ -63,9 +62,17 @@ impl<'info> CreatePayment<'info>{
         payment_bump:u8,
     ) -> Result<()> {
         let clock = Clock::get()?;
+        let seed_data = [
+            self.signer.key().as_ref(),
+            &clock.unix_timestamp.to_le_bytes(),
+        ].concat();
+        let hash = hash::hash(&seed_data);
+        let payment_id:[u8;16] = hash.to_bytes()[..16]
+        .try_into()
+        .map_err(|_| ProgramError::InvalidInstructionData)?;
         self.payments.set_inner(
             Payment { 
-                payment_id: 0, 
+                payment_id: payment_id, 
                 payment_amount, 
                 product_pubkey, 
                 payment_method: PaymentMethod::SOL, 

@@ -3,7 +3,7 @@ use anchor_lang::prelude::*;
 #[account]
 #[derive(InitSpace)]
 pub struct Payment{
-    pub payment_id: u32,
+    pub payment_id: [u8;16],
     pub payment_amount: u32,
     pub product_pubkey:Pubkey,
     pub payment_method:PaymentMethod,
