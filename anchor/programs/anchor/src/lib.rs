@@ -37,7 +37,7 @@ pub mod ecom_dapp {
     }
 
     pub fn add_to_cart(
-        ctx: Context<AddToCart>,
+        mut ctx: Context<AddToCart>,
         product_id: u32,
         product_name: String,
         quantity: u32,
