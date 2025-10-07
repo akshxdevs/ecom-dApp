@@ -15,30 +15,18 @@ pub struct CreateProduct<'info> {
         payer = seller,
         seeds = [b"product", seller.key().as_ref(), product_name.as_bytes()],
         bump,
-        space = 8
-              + 4 + product_name.len()
-              + 1
-              + 1
-              + 4
-              + 32
-              + 4 + 50
-              + 4 + product_short_description.len()
-              + 4 + 200
-              + 4
-              + 4
-              + 1
-              + 8
-              + 1
+        space = 8 + Product::INIT_SPACE
     )]
     pub product: Account<'info, Product>,
 
     #[account(
-        mut,
-        seeds = [b"product_list"], 
-        bump
+        init,
+        payer = seller,
+        seeds = [b"product_list"],
+        bump,
+        space = 8 + ProductsList::INIT_SPACE
     )]
-    pub product_list:Account<'info,ProductsList>,
-
+    pub product_list: Account<'info, ProductsList>,
     pub system_program: Program<'info, System>,
 }
 
@@ -66,7 +54,7 @@ impl <'info> CreateProduct<'info> {
         msg!("Generated Product ID: {:?}", product_id);
 
         self.product.set_inner(Product { 
-            product_id: product_id, 
+            product_id, 
             product_name:product_name.clone(), 
             category:category.clone() , 
             division:division.clone(), 
@@ -87,6 +75,12 @@ impl <'info> CreateProduct<'info> {
             price,
             category,
             division
+        });
+        Ok(())
+    }
+    pub fn initialize(&mut self) -> Result<()> {
+        self.product_list.set_inner(ProductsList {
+            products: Vec::new(),
         });
         Ok(())
     }
