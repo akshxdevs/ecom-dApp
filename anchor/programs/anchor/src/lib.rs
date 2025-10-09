@@ -41,7 +41,7 @@ pub mod ecom_dapp {
 
     pub fn add_to_cart(
         ctx: Context<AddToCart>,
-        product_id: u32,
+        product_id: String,
         product_name: String,
         quantity: u32,
         seller_pubkey: Pubkey,
@@ -49,7 +49,7 @@ pub mod ecom_dapp {
         price: u32,
     ) -> Result<()> {
         ctx.accounts.add_to_cart(
-            product_id,
+            product_id, 
             product_name,
             quantity,
             seller_pubkey,
@@ -57,10 +57,15 @@ pub mod ecom_dapp {
             price,
             ctx.bumps.cart,
         )?;
+
+        ctx.accounts.cart_list(
+            ctx.bumps.cart_list,
+        )?;
         let cart_key = ctx.accounts.cart.key();
         ctx.accounts.cart_list.cart_list.push(cart_key);
         Ok(())
     }
+
 
     pub fn create_payment(
         ctx: Context<CreatePayment>,
