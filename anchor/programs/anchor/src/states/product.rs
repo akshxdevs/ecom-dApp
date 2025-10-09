@@ -12,9 +12,9 @@ pub struct Product {
     pub seller_pubkey: Pubkey,
     #[max_len(50)]
     pub seller_name: String,
-    #[max_len(200)]
+    #[max_len(300)]
     pub product_short_description: String,
-    #[max_len(200)]
+    #[max_len(150)]
     pub product_imgurl: String,
     pub price: u32,
     pub rating: f32,
@@ -27,6 +27,7 @@ pub struct Product {
 pub struct ProductsList{
     #[max_len(40)]
     pub products:Vec<Pubkey>,
+    pub product_list_bump:u8,
 }
 #[event]
 pub struct ProductCreated {
