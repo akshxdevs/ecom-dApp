@@ -6,7 +6,7 @@ mod error;
 use crate::instructions::*;
 use crate::states::{Category,Division};
 
-declare_id!("DucWUpF1i6wrJCaV8sWnLC6Kcu3XbBg7k3zD3rPvZE9q");
+declare_id!("FYo4gi69vTJZJMnNxj2mZz2Q9CbUu12rQDVtHNUFQ2o7");
 
 #[program]
 pub mod ecom_dapp {
@@ -30,6 +30,9 @@ pub mod ecom_dapp {
             seller_name, 
             product_imgurl, 
             ctx.bumps.product,
+        )?;
+        ctx.accounts.product_list(
+            ctx.bumps.product_list,
         )?;
         let product_key = ctx.accounts.product.key();
         ctx.accounts.product_list.products.push(product_key);
