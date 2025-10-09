@@ -20,9 +20,9 @@ pub struct CreateProduct<'info> {
     pub product: Account<'info, Product>,
 
     #[account(
-        init,
+        init_if_needed,
         payer = seller,
-        seeds = [b"product_list"],
+        seeds = [b"product_list", seller.key().as_ref()],
         bump,
         space = 8 + ProductsList::INIT_SPACE
     )]
@@ -78,10 +78,16 @@ impl <'info> CreateProduct<'info> {
         });
         Ok(())
     }
-    pub fn initialize(&mut self) -> Result<()> {
-        self.product_list.set_inner(ProductsList {
-            products: Vec::new(),
-        });
+    pub fn product_list(
+        &mut self,
+        product_list_bump: u8,
+    ) -> Result<()> {
+        if self.product_list.products.is_empty() && self.product_list.product_list_bump == 0 {
+            self.product_list.set_inner(ProductsList {
+                products: Vec::new(),
+                product_list_bump
+            });
+        }
         Ok(())
     }
 }
