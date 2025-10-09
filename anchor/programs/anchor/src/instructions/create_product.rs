@@ -83,9 +83,9 @@ impl <'info> CreateProduct<'info> {
         product_list_bump: u8,
     ) -> Result<()> {
         if self.product_list.products.is_empty() && self.product_list.product_list_bump == 0 {
-            self.product_list.set_inner(ProductsList {
-                products: Vec::new(),
-                product_list_bump
+            self.product_list.set_inner(ProductsList { 
+                products: Vec::new(), 
+                product_list_bump 
             });
         }
         Ok(())
