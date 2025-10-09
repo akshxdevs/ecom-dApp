@@ -1,11 +1,15 @@
 use anchor_lang::prelude::*;
 
 #[account]
+#[derive(InitSpace)]
 pub struct Cart{
-    pub product_id: u32,
+    #[max_len(16)]
+    pub product_id: String,
+    #[max_len(50)]
     pub product_name: String,
     pub quantity: u32,
     pub seller_pubkey: Pubkey,
+    #[max_len(150)]
     pub product_imgurl: String,
     pub stock_status: Stock,
     pub price: u32,
@@ -13,8 +17,11 @@ pub struct Cart{
 }
 
 #[account]
+#[derive(InitSpace)]
 pub struct Cartlist{
+    #[max_len(40)]
     pub cart_list: Vec<Pubkey>, 
+    pub cart_list_bump:u8,
 }
 #[event]
 pub struct CartCreated {
@@ -23,7 +30,7 @@ pub struct CartCreated {
     pub product_name: String,
     pub price: u32,
 }
-#[derive(AnchorDeserialize,AnchorSerialize,Clone)]
+#[derive(AnchorDeserialize,AnchorSerialize,Clone,InitSpace, PartialEq, Eq)]
 pub enum Stock {
     OutOfStock,
     InStock,
