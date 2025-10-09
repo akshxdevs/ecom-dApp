@@ -10,23 +10,16 @@ pub struct AddToCart<'info> {
     #[account(
         init,
         payer = consumer,
-        seeds = [b"cart", consumer.key().as_ref(), &product_id.to_le_bytes()],
-        bump,
-        space = 8
-            + 4 /* product_id */
-            + 4 + product_name.len() /* product_name */
-            + 4 /* quantity */
-            + 32 /* seller_pubkey */
-            + 4 + product_imgurl.len() /* product_imgurl */
-            + 4 /* price */
-            + 1 /* stock_status */
-            + 1 /* cart_bump */
+        seeds = [b"cart", consumer.key().as_ref(), &product_id.swap_bytes()],
+        space = 8 + Cart::INIT_SPACE
     )]
     pub cart: Account<'info, Cart>,
     #[account(
-        mut,
-        seeds= [b"cart_list"],
-        bump
+        init_if_needed,
+        payer = consumer,
+        seeds= [b"cart_list",consumer.key().as_ref()],
+        bump,
+        space = 8 + Cartlist::INIT_SPACE
     )]
     pub cart_list:Account<'info,Cartlist>,
     pub system_program: Program<'info, System>,
@@ -35,7 +28,7 @@ pub struct AddToCart<'info> {
 impl <'info> AddToCart <'info> {
     pub fn add_to_cart(
         &mut self,
-        product_id: u32,
+        product_id: String,
         product_name: String,
         quantity: u32,
         seller_pubkey: Pubkey,
@@ -61,6 +54,19 @@ impl <'info> AddToCart <'info> {
             quantity,
             seller:self.cart.seller_pubkey,
         });
+        Ok(())
+    }
+    pub fn cart_list(
+        &mut self,
+        cart_list_bump:u8,
+    )->Result<()>{
+        if self.cart_list.cart_list.is_empty() && self.cart_list.cart_list_bump == 0 {
+            self.cart_list.set_inner(Cartlist { 
+                cart_list: Vec::new(), 
+                cart_list_bump 
+            });
+        }
+
         Ok(())
     }
 }
