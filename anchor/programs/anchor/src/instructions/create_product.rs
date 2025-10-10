@@ -5,7 +5,7 @@ use anchor_lang::solana_program::program_error::ProgramError;
 
 
 #[derive(Accounts)]
-#[instruction(product_name: String, product_short_description: String)]
+#[instruction(product_name: String)]
 pub struct CreateProduct<'info> {
     #[account(mut)]
     pub seller: Signer<'info>,
@@ -46,6 +46,7 @@ impl <'info> CreateProduct<'info> {
         let seed_data = [
             self.seller.key().as_ref(),
             &now.to_le_bytes(),
+            product_name.as_bytes(),
         ].concat();
         let hash = hash::hash(&seed_data);
         let product_id: [u8; 16]  = hash.to_bytes()[..16]
