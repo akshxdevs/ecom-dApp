@@ -4,11 +4,17 @@ import { EcomDapp } from "../target/types/ecom_dapp";
 import { Keypair, PublicKey } from "@solana/web3.js";
 import { SYSTEM_PROGRAM_ID } from "@coral-xyz/anchor/dist/cjs/native/system";
 import { expect } from "chai";
-
-
+import { BN } from "@coral-xyz/anchor";
+import { 
+  createMint, 
+  createAssociatedTokenAccount, 
+  getAssociatedTokenAddress, 
+  mintTo, 
+  TOKEN_PROGRAM_ID,
+  getAccount
+} from "@solana/spl-token";
 
 describe("anchor", () => {
-  // Configure the client to use the local cluster
   const provider = anchor.AnchorProvider.env();
   anchor.setProvider(provider);
 
@@ -17,8 +23,10 @@ describe("anchor", () => {
 
   let seller = Keypair.generate();
   let consumer = Keypair.generate();
-  
-  let product_id:any;
+  let buyer = Keypair.generate();
+  let cpiBuyer = Keypair.generate();
+
+  let product_id: any;
   let product_name: string;
   let product_short_description: string;
   let price: number;
@@ -40,23 +48,21 @@ describe("anchor", () => {
     ].join("-");
   }
 
-
-  it("should initialize and create product!", async () => {
+  it("should initialize and create product", async () => {
     await provider.connection.requestAirdrop(
       seller.publicKey,
       2 * anchor.web3.LAMPORTS_PER_SOL
     );
     await new Promise((resolve) => setTimeout(resolve, 1000));
 
-    product_name = "IPhone 17 Pro";
-    product_short_description = "The iPhone 17 Pro, launched September 2025, is a premium flagship with a 6.3-inch ProMotion display, A19 Pro chip, and advanced triple-camera system.";
+    product_name = "iPhone 17 Pro";
+    product_short_description = "Premium flagship smartphone";
     price = 799;
     category = { electronics: {} };
     division = { mobile: {} };
     seller_name = "Apple";
-    product_imgurl = "https://store.storeimages.cdn-apple.com/1/as-images.apple.com/is/iphone-17-pro-finish-select-202509-6-3inch-cosmicorange?wid=5120&hei=2880&fmt=webp&qlt=90&.v=NUNzdzNKR0FJbmhKWm5YamRHb05tUzkyK3hWak1ybHhtWDkwUXVINFc0RUlmWnJkM2NiV2hVVVF2ZE1VdGpQZWhsQTdPYWVGbmdIenAvNE9qYmZVYVFDb1F2RTNvUEVHRkpGaGtOSVFHak5NTEhXRE11VU1QNVo2eDJsWlpuWHRlLys5ZkozSXJXZWZXNk8rZDF5S0V3&traceId=1";
+    product_imgurl = "https://example.com/iphone.jpg";
 
-    // Calculate PDAs
     const [productPda, productBump] = PublicKey.findProgramAddressSync(
       [
         Buffer.from("product"),
@@ -69,6 +75,7 @@ describe("anchor", () => {
       [Buffer.from("product_list"), seller.publicKey.toBuffer()],
       program.programId
     );
+    
     const tx = await program.methods
       .createProduct(
         product_name,
@@ -88,30 +95,22 @@ describe("anchor", () => {
       .signers([seller])
       .rpc();
 
-    console.log("Your transaction signature", tx);
-
     const product = await program.account.product.fetch(productPda);
-    console.log("Added Product Details: ", product);
-
-    const getSellerBalance = await provider.connection.getBalance(
-      seller.publicKey
-    );
-    const seller_balance = getSellerBalance / 1e9;
-    console.log("Seller Balance: ", seller_balance + "SOL");
-
     product_id = bytesToUuid(product.productId);
-    console.log("Product Id:", product_id);
+    
+    expect(product.productName).to.equal(product_name);
+    expect(product.price).to.equal(price);
   });
-  it("creating another product!", async () => {
+
+  it("should create another product", async () => {
     product_name = "MacBook Pro";
-    product_short_description = "Powerful, sleek, high-performance laptop with stunning display and long battery.";
+    product_short_description = "High-performance laptop";
     price = 1599;
     category = { electronics: {} };
     division = { laptop: {} };
     seller_name = "Apple";
-    product_imgurl = "https://encrypted-tbn2.gstatic.com/shopping?q=tbn:ANd9GcRTYbESY_XvQ5bcb8ukHm5q0LCmvzK9AaK5DyMGbcFqIovxJvYCCkG-5AQU5IqaBI_EIXeqDuY9nGJ7Q8P9P_f_7ZBkuu3l01ucR-iNkEa5OKrHs5L8kF53";
+    product_imgurl = "https://example.com/macbook.jpg";
 
-    // Calculate PDAs
     const [productPda, productBump] = PublicKey.findProgramAddressSync(
       [
         Buffer.from("product"),
@@ -124,6 +123,7 @@ describe("anchor", () => {
       [Buffer.from("product_list"), seller.publicKey.toBuffer()],
       program.programId
     );
+    
     const tx = await program.methods
       .createProduct(
         product_name,
@@ -143,25 +143,22 @@ describe("anchor", () => {
       .signers([seller])
       .rpc();
 
-    console.log("Your transaction signature", tx);
-
     const product = await program.account.product.fetch(productPda);
-    console.log("Added Product Details: ", product);
-
     product_id = bytesToUuid(product.productId);
-    console.log("Product Id:", product_id);
+    
+    expect(product.productName).to.equal(product_name);
+    expect(product.price).to.equal(price);
   });
-  it("should display all the created products", async () => {
+
+  it("should create third product and display all products", async () => {
     product_name = "Apple Watch SE";
-    product_short_description =
-      "The Apple Watch is Apple's premium smartwatch lineup, designed for health tracking, fitness, connectivity, and safety.";
+    product_short_description = "Smartwatch for health tracking";
     price = 249;
     category = { electronics: {} };
     division = { smartWatch: {} };
     seller_name = "Apple";
-    product_imgurl = "https://encrypted-tbn0.gstatic.com/shopping?q=tbn:ANd9GcSfoMHgS1tRqOz2hmUMFLJ4z6RqDlr5QqKlJ9_IOuUBMlcASEw1778AlhSNluH43nlADPMe20U7ZkmDoEsx_7w8d0r_6cJjvHKTQtPPR-1r5CrMhqfeDGib7L8";
+    product_imgurl = "https://example.com/watch.jpg";
 
-    // Calculate PDAs
     const [productPda, productBump] = PublicKey.findProgramAddressSync(
       [
         Buffer.from("product"),
@@ -174,6 +171,7 @@ describe("anchor", () => {
       [Buffer.from("product_list"), seller.publicKey.toBuffer()],
       program.programId
     );
+    
     const tx = await program.methods
       .createProduct(
         product_name,
@@ -193,27 +191,19 @@ describe("anchor", () => {
       .signers([seller])
       .rpc();
 
-    console.log("Your transaction signature", tx); 
-
     const product = await program.account.product.fetch(productPda);
-    console.log("Added Product Details: ", product);
-
-    const productList = await program.account.productsList.fetch(
-      productListPda
-    );
-    console.log("Product List: ", productList);
-
+    const productList = await program.account.productsList.fetch(productListPda);
     product_id = bytesToUuid(product.productId);
-    console.log("Product Id:", product_id);
+    
+    expect(productList.products.length).to.equal(3);
   });
 
-  it("should add product to cart",async()=>{
+  it("should add product to cart", async () => {
     await provider.connection.requestAirdrop(
       consumer.publicKey,
-      2* anchor.web3.LAMPORTS_PER_SOL
+      2 * anchor.web3.LAMPORTS_PER_SOL
     );
-    await new Promise((res)=> setTimeout(res,1000));
-    console.log(product_name);
+    await new Promise((resolve) => setTimeout(resolve, 1000));
 
     const [cartPda] = PublicKey.findProgramAddressSync(
       [Buffer.from("cart"), 
@@ -223,7 +213,7 @@ describe("anchor", () => {
       program.programId
     );
     const [cartListPda] = PublicKey.findProgramAddressSync(
-      [Buffer.from("cart_list"),consumer.publicKey.toBuffer(),],
+      [Buffer.from("cart_list"), consumer.publicKey.toBuffer()],
       program.programId
     );
 
@@ -246,24 +236,21 @@ describe("anchor", () => {
       )
       .accounts({
         consumer: consumer.publicKey,
-        cart: cartPda,
-        products:productPda,
+        products: productPda,
         cartList: cartListPda,
         systemProgram: SYSTEM_PROGRAM_ID,
-      })
+      } as any)
       .signers([consumer])
       .rpc();
 
-    console.log("Your transaction signature", tx);
     const cart = await program.account.cart.fetch(cartPda);
-    console.log("Product Added to Cart: ",cart);
     const cartProductId = bytesToUuid(cart.productId); 
-    console.log("Cart Product Id: ",cartProductId);
-
+    
+    expect(cart.productName).to.equal(product_name);
+    expect(cart.quantity).to.equal(1);
   });
 
-  it("should added product to cart",async()=>{
-    console.log(product_name);
+  it("should add another product to cart", async () => {
     const [cartPda] = PublicKey.findProgramAddressSync(
       [Buffer.from("cart"), 
         consumer.publicKey.toBuffer(), 
@@ -272,7 +259,7 @@ describe("anchor", () => {
       program.programId
     );
     const [cartListPda] = PublicKey.findProgramAddressSync(
-      [Buffer.from("cart_list"),consumer.publicKey.toBuffer(),],
+      [Buffer.from("cart_list"), consumer.publicKey.toBuffer()],
       program.programId
     );
 
@@ -284,6 +271,7 @@ describe("anchor", () => {
       ],
       program.programId
     );
+    
     const tx = await program.methods
       .addToCart(
         product_name,        
@@ -294,43 +282,277 @@ describe("anchor", () => {
       )
       .accounts({
         consumer: consumer.publicKey,
-        cart: cartPda,
-        products:productPda,
+        products: productPda,
         cartList: cartListPda,
         systemProgram: SYSTEM_PROGRAM_ID,
-      })
+      } as any)
       .signers([consumer])
       .rpc();
 
-    console.log("Your transaction signature", tx);
     const cart = await program.account.cart.fetch(cartPda);
-    console.log("Product Added to Cart: ",cart);
     const cartProductId = bytesToUuid(cart.productId); 
-    console.log("Cart Product Id: ",cartProductId);
     
+    expect(cart.productName).to.equal(product_name);
   });
 
-  it("should display cart count and fetch individual cart items",async()=>{
-    console.log("Displaying cart information...");
-    
+  it("should display cart count", async () => {
     const [cartListPda] = PublicKey.findProgramAddressSync(
-      [Buffer.from("cart_list"),consumer.publicKey.toBuffer(),],
+      [Buffer.from("cart_list"), consumer.publicKey.toBuffer()],
       program.programId
     );
 
     const cartList = await program.account.cartList.fetch(cartListPda);
-    console.log("CartList: ",cartList.cartList);
+    expect(cartList.cartList.length).to.be.greaterThan(0);
   });
 
-  // it("should create a escrow",async()=>{
+  it("should create payment and order", async () => {
+    await provider.connection.requestAirdrop(
+      buyer.publicKey,
+      2 * anchor.web3.LAMPORTS_PER_SOL
+    );
+    await new Promise((resolve) => setTimeout(resolve, 1000));
 
-  // });
+    const [paymentPda] = PublicKey.findProgramAddressSync(
+      [Buffer.from("payment"), buyer.publicKey.toBuffer()],
+      program.programId
+    );
 
-  // it("should transfer funds perform payment",async()=>{
+    const [cartPda] = PublicKey.findProgramAddressSync(
+      [Buffer.from("cart"), 
+        consumer.publicKey.toBuffer(), 
+        Buffer.from(product_name)
+      ],
+      program.programId
+    );
 
-  // });
+    const cartData = await program.account.cart.fetch(cartPda);
+    const [productPda] = PublicKey.findProgramAddressSync(
+      [
+        Buffer.from("product"),
+        seller.publicKey.toBuffer(),
+        Buffer.from(product_name),
+      ],
+      program.programId
+    );
+    const productData = await program.account.product.fetch(productPda);
+    const product_id_bytes = productData.productId;
 
-  // it("should book the order",async()=>{
+    const total_amount = cartData.price * cartData.quantity;
+    const payment_amount = new BN(total_amount);
+    
+    const payment_tx = await program.methods.createPayment(
+      payment_amount,
+      cartPda,
+      null,
+    ).accounts({
+      signer: buyer.publicKey,
+      payments: paymentPda,
+      systemProgram: SYSTEM_PROGRAM_ID,
+    } as any).signers([buyer]).rpc();
+    
+    const payment = await program.account.payment.fetch(paymentPda);
 
-  // });
+    const [orderPda] = PublicKey.findProgramAddressSync(
+      [Buffer.from("order"), buyer.publicKey.toBuffer()],
+      program.programId
+    );
+
+    const order_tx = await program.methods.createOrder(
+      product_id_bytes,
+      payment.paymentId,
+      product_id_bytes,
+    ).accounts({
+      signer: buyer.publicKey,
+      order: orderPda,
+      cart: cartPda,
+      payment: paymentPda,
+      systemProgram: SYSTEM_PROGRAM_ID,
+    } as any).signers([buyer]).rpc();
+    
+    const order = await program.account.order.fetch(orderPda);
+
+    expect(payment.paymentAmount.toString()).to.equal(total_amount.toString());
+    expect(order.orderStatus).to.have.property("pending");
+  });
+
+  it("should implement CPI transfer with token accounts", async () => {
+    await provider.connection.requestAirdrop(
+      cpiBuyer.publicKey,
+      2 * anchor.web3.LAMPORTS_PER_SOL
+    );
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+
+    // Create SPL Token Mint
+    const mint = await createMint(
+      provider.connection,
+      cpiBuyer,
+      cpiBuyer.publicKey,
+      null,
+      6
+    );
+
+    // Get cart data for amount calculation
+    const [cartPda] = PublicKey.findProgramAddressSync(
+      [Buffer.from("cart"), 
+        consumer.publicKey.toBuffer(), 
+        Buffer.from(product_name)
+      ],
+      program.programId
+    );
+    const cartData = await program.account.cart.fetch(cartPda);
+    const total_amount = cartData.price * cartData.quantity;
+
+    // Create Associated Token Accounts (ATAs)
+    const buyerAta = await getAssociatedTokenAddress(mint, cpiBuyer.publicKey);
+    try {
+      await createAssociatedTokenAccount(
+        provider.connection,
+        cpiBuyer,
+        mint,
+        cpiBuyer.publicKey
+      );
+    } catch (error) {
+      // Account already exists
+    }
+
+    const sellerAta = await getAssociatedTokenAddress(mint, seller.publicKey);
+    try {
+      await createAssociatedTokenAccount(
+        provider.connection,
+        cpiBuyer,
+        mint,
+        seller.publicKey
+      );
+    } catch (error) {
+      // Account already exists
+    }
+
+    // Get product data for product_id
+    const [productPda] = PublicKey.findProgramAddressSync(
+      [
+        Buffer.from("product"),
+        seller.publicKey.toBuffer(),
+        Buffer.from(product_name),
+      ],
+      program.programId
+    );
+    const productData = await program.account.product.fetch(productPda);
+    const product_id_bytes = productData.productId;
+    const product_id_u32 = new DataView(Buffer.from(product_id_bytes).buffer).getUint32(0, true);
+
+    // Note: escrowPda will be derived automatically by Anchor
+
+    // Mint tokens to buyer
+    const mintAmount = total_amount * 2;
+    await mintTo(
+      provider.connection,
+      cpiBuyer,
+      mint,
+      buyerAta,
+      cpiBuyer.publicKey,
+      mintAmount
+    );
+
+    // Create Payment and Escrow
+    const [paymentPda] = PublicKey.findProgramAddressSync(
+      [Buffer.from("payment"), cpiBuyer.publicKey.toBuffer()],
+      program.programId
+    );
+
+    const payment_amount = new BN(total_amount);
+    const payment_tx = await program.methods.createPayment(
+      payment_amount,
+      cartPda,
+      null,
+    ).accounts({
+      signer: cpiBuyer.publicKey,
+      payments: paymentPda,
+      systemProgram: SYSTEM_PROGRAM_ID,
+    } as any).signers([cpiBuyer]).rpc();
+    const product_id_buffer = Buffer.alloc(4);
+    product_id_buffer.writeUInt32LE(product_id_u32, 0);
+    const [escrowPda] = PublicKey.findProgramAddressSync(
+      [
+        Buffer.from("escrow"),
+        cpiBuyer.publicKey.toBuffer(),
+        product_id_buffer,
+      ],
+      program.programId
+    );
+
+    // Create escrow ATA now that we know the escrow PDA
+    const escrowAta = await getAssociatedTokenAddress(mint, escrowPda, true);
+      await createAssociatedTokenAccount(
+        provider.connection,
+        cpiBuyer,
+        mint,
+        escrowPda
+      );
+    const escrow_tx = await program.methods.createEscrow(
+      cpiBuyer.publicKey,
+      seller.publicKey,
+      payment_amount,
+      product_id_u32,
+    ).accounts({
+      owner: cpiBuyer.publicKey,
+      payment: paymentPda,
+      cart: cartPda,
+      userAta: buyerAta,
+      buyerAta: buyerAta,
+      escrowAta: escrowAta,
+      sellerAta: sellerAta,
+      products: productPda,
+      tokenProgram: TOKEN_PROGRAM_ID,
+      systemProgram: SYSTEM_PROGRAM_ID,
+    } as any).signers([cpiBuyer]).rpc();
+
+    // Get the escrow PDA that was created
+
+    // Deposit to Escrow (CPI Transfer)
+    const deposit_tx = await program.methods.depositEscrow(
+      product_id_u32
+    ).accounts({
+      owner: cpiBuyer.publicKey,
+      escrow: escrowPda,
+      payment: paymentPda,
+      cart: cartPda,
+      userAta: buyerAta,
+      escrowAta: escrowAta,
+      buyerAta: buyerAta,
+      sellerAta: sellerAta,
+      products: productPda,
+      tokenProgram: TOKEN_PROGRAM_ID,
+      systemProgram: SYSTEM_PROGRAM_ID,
+    } as any).signers([cpiBuyer]).rpc();
+
+    // Check balances after deposit
+    const buyerBalanceAfter = await getAccount(provider.connection, buyerAta);
+    const escrowBalanceAfter = await getAccount(provider.connection, escrowAta);
+
+    expect(escrowBalanceAfter.amount.toString()).to.equal(total_amount.toString());
+
+    // Withdraw from Escrow (CPI Transfer)
+    const withdraw_tx = await program.methods.withdrawEscrow(
+      product_id_u32
+    ).accounts({
+      owner: cpiBuyer.publicKey,
+      escrow: escrowPda,
+      payment: paymentPda,
+      cart: cartPda,
+      userAta: buyerAta,
+      escrowAta: escrowAta,
+      buyerAta: buyerAta,
+      sellerAta: sellerAta,
+      products: productPda,
+      tokenProgram: TOKEN_PROGRAM_ID,
+      systemProgram: SYSTEM_PROGRAM_ID,
+    } as any).signers([cpiBuyer]).rpc();
+
+    // Check final balances
+    const sellerBalanceFinal = await getAccount(provider.connection, sellerAta);
+    const escrowBalanceFinal = await getAccount(provider.connection, escrowAta);
+
+    expect(sellerBalanceFinal.amount.toString()).to.equal(total_amount.toString());
+    expect(escrowBalanceFinal.amount.toString()).to.equal("0");
+  });
 });
