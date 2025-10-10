@@ -3,8 +3,7 @@ use anchor_lang::prelude::*;
 #[account]
 #[derive(InitSpace)]
 pub struct Cart{
-    #[max_len(16)]
-    pub product_id: String,
+    pub product_id: [u8;16],
     #[max_len(50)]
     pub product_name: String,
     pub quantity: u32,
@@ -18,7 +17,7 @@ pub struct Cart{
 
 #[account]
 #[derive(InitSpace)]
-pub struct Cartlist{
+pub struct CartList{
     #[max_len(40)]
     pub cart_list: Vec<Pubkey>, 
     pub cart_list_bump:u8,
