@@ -3,6 +3,9 @@ import { Program } from "@coral-xyz/anchor";
 import { EcomDapp } from "../target/types/ecom_dapp";
 import { Keypair, PublicKey } from "@solana/web3.js";
 import { SYSTEM_PROGRAM_ID } from "@coral-xyz/anchor/dist/cjs/native/system";
+import { expect } from "chai";
+
+
 
 describe("anchor", () => {
   // Configure the client to use the local cluster
@@ -23,6 +26,20 @@ describe("anchor", () => {
   let division: any;
   let seller_name: string;
   let product_imgurl: string;
+
+  function bytesToUuid(bytes: number[]): string {
+    if (bytes.length !== 16) throw new Error("Invalid UUID length");
+
+    const hex = bytes.map((b) => b.toString(16).padStart(2, "0")).join("");
+    return [
+      hex.slice(0, 8),
+      hex.slice(8, 12),
+      hex.slice(12, 16),
+      hex.slice(16, 20),
+      hex.slice(20),
+    ].join("-");
+  }
+
 
   it("should initialize and create product!", async () => {
     await provider.connection.requestAirdrop(
@@ -71,29 +88,19 @@ describe("anchor", () => {
       .signers([seller])
       .rpc();
 
-    const product = await program.account.product.fetch(productPda);
-    console.log("Added Product Details: ", product);
     console.log("Your transaction signature", tx);
 
-    function bytesToUuid(bytes: number[]): string {
-      if (bytes.length !== 16) throw new Error("Invalid UUID length");
+    const product = await program.account.product.fetch(productPda);
+    console.log("Added Product Details: ", product);
 
-      const hex = bytes.map((b) => b.toString(16).padStart(2, "0")).join("");
-      return [
-        hex.slice(0, 8),
-        hex.slice(8, 12),
-        hex.slice(12, 16),
-        hex.slice(16, 20),
-        hex.slice(20),
-      ].join("-");
-    }
-    product_id = bytesToUuid(product.productId);
-    console.log("Product Id:", product_id);
     const getSellerBalance = await provider.connection.getBalance(
       seller.publicKey
     );
     const seller_balance = getSellerBalance / 1e9;
     console.log("Seller Balance: ", seller_balance + "SOL");
+
+    product_id = bytesToUuid(product.productId);
+    console.log("Product Id:", product_id);
   });
   it("creating another product!", async () => {
     product_name = "MacBook Pro";
@@ -136,35 +143,23 @@ describe("anchor", () => {
       .signers([seller])
       .rpc();
 
-    const product = await program.account.product.fetch(productPda);
-    console.log("Added Product Details: ", product);
     console.log("Your transaction signature", tx);
 
-    function bytesToUuid(bytes: number[]): string {
-      if (bytes.length !== 16) throw new Error("Invalid UUID length");
+    const product = await program.account.product.fetch(productPda);
+    console.log("Added Product Details: ", product);
 
-      const hex = bytes.map((b) => b.toString(16).padStart(2, "0")).join("");
-      return [
-        hex.slice(0, 8),
-        hex.slice(8, 12),
-        hex.slice(12, 16),
-        hex.slice(16, 20),
-        hex.slice(20),
-      ].join("-");
-    }
     product_id = bytesToUuid(product.productId);
     console.log("Product Id:", product_id);
   });
   it("should display all the created products", async () => {
     product_name = "Apple Watch SE";
-    const product_short_description =
+    product_short_description =
       "The Apple Watch is Apple's premium smartwatch lineup, designed for health tracking, fitness, connectivity, and safety.";
     price = 249;
     category = { electronics: {} };
     division = { smartWatch: {} };
     seller_name = "Apple";
-    product_imgurl =
-      "https://encrypted-tbn0.gstatic.com/shopping?q=tbn:ANd9GcSfoMHgS1tRqOz2hmUMFLJ4z6RqDlr5QqKlJ9_IOuUBMlcASEw1778AlhSNluH43nlADPMe20U7ZkmDoEsx_7w8d0r_6cJjvHKTQtPPR-1r5CrMhqfeDGib7L8";
+    product_imgurl = "https://encrypted-tbn0.gstatic.com/shopping?q=tbn:ANd9GcSfoMHgS1tRqOz2hmUMFLJ4z6RqDlr5QqKlJ9_IOuUBMlcASEw1778AlhSNluH43nlADPMe20U7ZkmDoEsx_7w8d0r_6cJjvHKTQtPPR-1r5CrMhqfeDGib7L8";
 
     // Calculate PDAs
     const [productPda, productBump] = PublicKey.findProgramAddressSync(
@@ -198,35 +193,18 @@ describe("anchor", () => {
       .signers([seller])
       .rpc();
 
+    console.log("Your transaction signature", tx); 
+
     const product = await program.account.product.fetch(productPda);
     console.log("Added Product Details: ", product);
-    console.log("Your transaction signature", tx);
-
-    function bytesToUuid(bytes: number[]): string {
-      if (bytes.length !== 16) throw new Error("Invalid UUID length");
-
-      const hex = bytes.map((b) => b.toString(16).padStart(2, "0")).join("");
-      return [
-        hex.slice(0, 8),
-        hex.slice(8, 12),
-        hex.slice(12, 16),
-        hex.slice(16, 20),
-        hex.slice(20),
-      ].join("-");
-    }
-    product_id = bytesToUuid(product.productId);
-    console.log("Product Id:", product_id);    
-
-    const getSellerBalance = await provider.connection.getBalance(
-      seller.publicKey
-    );
-    const seller_balance = getSellerBalance / 1e9;
-    console.log("Seller Balance: ", seller_balance + "SOL");
 
     const productList = await program.account.productsList.fetch(
       productListPda
     );
     console.log("Product List: ", productList);
+
+    product_id = bytesToUuid(product.productId);
+    console.log("Product Id:", product_id);
   });
 
   it("should add product to cart",async()=>{
@@ -235,10 +213,13 @@ describe("anchor", () => {
       2* anchor.web3.LAMPORTS_PER_SOL
     );
     await new Promise((res)=> setTimeout(res,1000));
-    
-    // Use the actual 16-byte product ID from the created product
+    console.log(product_name);
+
     const [cartPda] = PublicKey.findProgramAddressSync(
-      [Buffer.from("cart"), consumer.publicKey.toBuffer(), Buffer.from(product_id)],
+      [Buffer.from("cart"), 
+        consumer.publicKey.toBuffer(), 
+        Buffer.from(product_name)
+      ],
       program.programId
     );
     const [cartListPda] = PublicKey.findProgramAddressSync(
@@ -246,12 +227,17 @@ describe("anchor", () => {
       program.programId
     );
 
-    console.log(product_id);
-    
-    
+    const [productPda, productBump] = PublicKey.findProgramAddressSync(
+      [
+        Buffer.from("product"),
+        seller.publicKey.toBuffer(),
+        Buffer.from(product_name),
+      ],
+      program.programId
+    );
+
     const tx = await program.methods
       .addToCart(
-        product_id,
         product_name,        
         1,                   
         seller.publicKey,    
@@ -261,6 +247,7 @@ describe("anchor", () => {
       .accounts({
         consumer: consumer.publicKey,
         cart: cartPda,
+        products:productPda,
         cartList: cartListPda,
         systemProgram: SYSTEM_PROGRAM_ID,
       })
@@ -269,14 +256,71 @@ describe("anchor", () => {
 
     console.log("Your transaction signature", tx);
     const cart = await program.account.cart.fetch(cartPda);
-    console.log("Cart: ", cart);
-    const cartList = await program.account.cartlist.fetch(cartListPda);
-    console.log("CartList: ", cartList);
+    console.log("Product Added to Cart: ",cart);
+    const cartProductId = bytesToUuid(cart.productId); 
+    console.log("Cart Product Id: ",cartProductId);
+
   });
 
-  // it("should add to cart & display cart list of publickey",async()=>{
+  it("should added product to cart",async()=>{
+    console.log(product_name);
+    const [cartPda] = PublicKey.findProgramAddressSync(
+      [Buffer.from("cart"), 
+        consumer.publicKey.toBuffer(), 
+        Buffer.from(product_name)
+      ],
+      program.programId
+    );
+    const [cartListPda] = PublicKey.findProgramAddressSync(
+      [Buffer.from("cart_list"),consumer.publicKey.toBuffer(),],
+      program.programId
+    );
 
-  // });
+    const [productPda, productBump] = PublicKey.findProgramAddressSync(
+      [
+        Buffer.from("product"),
+        seller.publicKey.toBuffer(),
+        Buffer.from(product_name),
+      ],
+      program.programId
+    );
+    const tx = await program.methods
+      .addToCart(
+        product_name,        
+        1,                   
+        seller.publicKey,    
+        product_imgurl,      
+        price                
+      )
+      .accounts({
+        consumer: consumer.publicKey,
+        cart: cartPda,
+        products:productPda,
+        cartList: cartListPda,
+        systemProgram: SYSTEM_PROGRAM_ID,
+      })
+      .signers([consumer])
+      .rpc();
+
+    console.log("Your transaction signature", tx);
+    const cart = await program.account.cart.fetch(cartPda);
+    console.log("Product Added to Cart: ",cart);
+    const cartProductId = bytesToUuid(cart.productId); 
+    console.log("Cart Product Id: ",cartProductId);
+    
+  });
+
+  it("should display cart count and fetch individual cart items",async()=>{
+    console.log("Displaying cart information...");
+    
+    const [cartListPda] = PublicKey.findProgramAddressSync(
+      [Buffer.from("cart_list"),consumer.publicKey.toBuffer(),],
+      program.programId
+    );
+
+    const cartList = await program.account.cartList.fetch(cartListPda);
+    console.log("CartList: ",cartList.cartList);
+  });
 
   // it("should create a escrow",async()=>{
 
