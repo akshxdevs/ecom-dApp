@@ -82,16 +82,34 @@ pub mod ecom_dapp {
         ctx: Context<CreateEscrow>,
         buyer_pubkey:Pubkey,
         seller_pubkey:Pubkey,
-        product_id:[u8;16],
-        payment_id:[u8;16],
         amount:u64,
     )-> Result<()> {
         ctx.accounts.create_escrow(
             buyer_pubkey, 
             seller_pubkey, 
-            product_id, 
-            payment_id, 
             amount, 
+            ctx.bumps.escrow
+        )?;
+        Ok(())
+    }
+
+    pub fn deposit_escrow(
+        ctx: Context<CreateEscrow>,
+        product_id: u32,
+    ) -> Result<()> {
+        ctx.accounts.deposite_escrow(
+            product_id,
+            ctx.bumps.escrow
+        )?;
+        Ok(())
+    }
+
+    pub fn withdraw_escrow(
+        ctx: Context<CreateEscrow>,
+        product_id: u32,
+    ) -> Result<()> {
+        ctx.accounts.withdrawl_escrow(
+            product_id,
             ctx.bumps.escrow
         )?;
         Ok(())
