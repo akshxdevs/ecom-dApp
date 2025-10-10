@@ -1,6 +1,6 @@
 use anchor_lang::prelude::*;
 use anchor_spl::token::{self, Token, Transfer};
-use crate::{error::EcomError, states::{cart::Cart, escrow::{Escrow, EscrowStatus}, payment::{Payment, PaymentMethod, PaymentStatus}}};
+use crate::{error::EcomError, states::{cart::Cart, escrow::{Escrow, EscrowStatus}, payment::{Payment, PaymentMethod, PaymentStatus}, Product}};
 use anchor_lang::solana_program::hash::{self};
 
 
@@ -51,6 +51,9 @@ pub struct CreateEscrow<'info>{
     #[account(mut)]
     pub seller_ata: AccountInfo<'info>,
 
+    #[account(mut)]
+    pub products: Account<'info,Product>,
+
     pub token_program:Program<'info,Token>,
     pub system_program:Program<'info,System>
 }
@@ -96,12 +99,12 @@ impl <'info> CreateEscrow<'info> {
         &mut self,
         buyer_pubkey:Pubkey,
         seller_pubkey:Pubkey,
-        product_id:[u8;16],
-        payment_id:[u8;16],
         amount:u64,
         escrow_bump:u8,
     )->Result<()> {
         let clock = Clock::get()?;
+        let payment_id = self.payment.payment_id;
+        let product_id = self.products.product_id;
         self.escrow.set_inner(Escrow { 
             owner: self.owner.key(), 
             buyer_pubkey, 
