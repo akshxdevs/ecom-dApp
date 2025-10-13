@@ -49,10 +49,10 @@ pub mod ecom_dapp {
     ) -> Result<()> {
         ctx.accounts.add_to_cart(
             product_name,
-            quantity,
+            quantity as u64,
             seller_pubkey,
             product_imgurl,
-            price,
+            price as u64,
             ctx.bumps.cart,
         )?;
 
@@ -94,23 +94,27 @@ pub mod ecom_dapp {
     }
 
     pub fn deposit_escrow(
-        ctx: Context<CreateEscrow>,
-        product_id: u32,
+        ctx: Context<DepositeEscrow>,
+        _product_id: u32,
+        amount:u64,
     ) -> Result<()> {
         ctx.accounts.deposite_escrow(
-            product_id,
-            ctx.bumps.escrow
+            // product_id,
+            ctx.bumps.escrow,
+            amount
         )?;
         Ok(())
     }
 
     pub fn withdraw_escrow(
-        ctx: Context<CreateEscrow>,
-        product_id: u32,
+        ctx: Context<WithdrawlEscrow>,
+        _product_id: u32,
+        amount:u64,
     ) -> Result<()> {
         ctx.accounts.withdrawl_escrow(
-            product_id,
-            ctx.bumps.escrow
+            // product_id,
+            ctx.bumps.escrow,
+            amount
         )?;
         Ok(())
     }
