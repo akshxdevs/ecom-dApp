@@ -35,10 +35,10 @@ impl <'info> AddToCart <'info> {
     pub fn add_to_cart(
         &mut self,
         product_name: String,
-        quantity: u32,
+        quantity: u64,
         seller_pubkey: Pubkey,
         product_imgurl: String,
-        price: u32,
+        amount: u64,
         cart_bump:u8,
     ) -> Result<()>{
         let product_id = self.products.product_id;
@@ -49,14 +49,14 @@ impl <'info> AddToCart <'info> {
                 quantity, 
                 seller_pubkey, 
                 product_imgurl: product_imgurl.clone(),
-                price, 
+                amount: vec![amount], 
                 stock_status: Stock::InStock,
                 cart_bump,
             });
 
         emit!(CartCreated{
             product_name,
-            price,
+            amount,
             quantity,
             seller: seller_pubkey,
         });
@@ -68,11 +68,19 @@ impl <'info> AddToCart <'info> {
         cart_list_bump:u8,
     )->Result<()>{
         // Only initialize if the cart_list is empty (new account)
+        let cart = &mut self.cart;
+        let current_cart_total: u64 = cart.amount.iter().copied().sum();
+        let quantity = cart.quantity;
         if self.cart_list.cart_list.is_empty() {
             self.cart_list.set_inner(CartList { 
-                cart_list: Vec::new(), 
+                cart_list: Vec::new(),
+                total_amount: current_cart_total * quantity,  
                 cart_list_bump 
             });
+        } else {
+            // increment grand total by this cart's total for this call
+            let new_total = self.cart_list.total_amount.saturating_add(current_cart_total);
+            self.cart_list.total_amount = new_total * quantity;
         }
         Ok(())
     }
