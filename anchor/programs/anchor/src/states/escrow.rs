@@ -7,8 +7,8 @@ pub struct Escrow{
     pub owner:Pubkey,
     pub buyer_pubkey:Pubkey,
     pub seller_pubkey:Pubkey,
-    pub product_id:[u8;16],
-    pub payment_id:[u8;16],
+    // pub product_id:[u8;16],
+    // pub payment_id:[u8;16],
     pub amount:u64,
     pub release_fund:bool,
     pub time_stamp:i64,
@@ -21,6 +21,6 @@ pub struct Escrow{
 pub enum EscrowStatus {
     SwapPending,
     FundsReceived,
-    TransferSuccess,
+    SwapSuccess,
     TransferFailed,
 }
