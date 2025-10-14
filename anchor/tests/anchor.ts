@@ -60,8 +60,8 @@ describe("anchor", () => {
     return data.solana.usd; 
   }
   async function convertUsdToLamports(usdAmount: number): Promise<number> {
-    const solPrice = await getSolPrice();   // $ per SOL
-    const solAmount = usdAmount / solPrice; // SOL needed
+    const solPrice = await getSolPrice();   
+    const solAmount = usdAmount / solPrice;
     const lamports = Math.round(solAmount * LAMPORTS_PER_SOL);
     return lamports;
   }
