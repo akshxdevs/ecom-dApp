@@ -85,4 +85,3 @@ impl <'info> AddToCart <'info> {
         Ok(())
     }
 }
-
