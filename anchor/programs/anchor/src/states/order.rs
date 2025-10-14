@@ -4,8 +4,8 @@ use anchor_lang::prelude::*;
 #[derive(InitSpace)]
 pub struct Order{
     pub order_id:[u8;16],
-    pub product_id:[u8;16],
-    pub payment_id:[u8;16],
+    #[max_len(64)]
+    pub payment_id:String,
     pub tracking_id:[u8;16],
     pub order_status:OrderStatus,
     pub order_tracking:OrderTracking,
