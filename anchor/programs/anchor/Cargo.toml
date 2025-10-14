@@ -25,4 +25,5 @@ anchor-lang = { version = "0.31.1", features = ["init-if-needed"] }
 anchor-spl = "0.31.1"
 sha256 = "1.6.0"
 spl-token = "8.0.0"
+uuid = "1.18.1"
 
