@@ -35,12 +35,12 @@ describe("anchor", () => {
   let product_imgurl: string[] = [];;
   let total_amount: number;
 
-  let escrow:anchor.web3.PublicKey;
   let mint:anchor.web3.PublicKey;
   let escrowAta:anchor.web3.PublicKey;
   let sellerAta:anchor.web3.PublicKey;
   let buyerAta:anchor.web3.PublicKey;
   let userAta:anchor.web3.PublicKey;
+  let payment_tx:string;
 
   function bytesToUuid(bytes: number[]): string {
     if (bytes.length !== 16) throw new Error("Invalid UUID length");
@@ -66,7 +66,7 @@ describe("anchor", () => {
     return lamports;
   }
 
-  it.only("should initialize and create product", async () => {
+  it("should initialize and create product", async () => {
     await provider.connection.requestAirdrop(
       seller.publicKey,
       2 * anchor.web3.LAMPORTS_PER_SOL
@@ -126,7 +126,7 @@ describe("anchor", () => {
     // expect(productDetails.price).to.equal(price);
   });
 
-  it.only("should create another product", async () => {
+  it("should create another product", async () => {
     product_name[1] = "MacBook Pro";
     product_short_description[1] = "High-performance laptop";
     price[1] = 1599;
@@ -180,7 +180,7 @@ describe("anchor", () => {
     // expect(productDetails.price).to.equal(price);
   });
 
-  it.only("should create third product and display all products", async () => {
+  it("should create third product and display all products", async () => {
     product_name[2] = "Apple Watch SE";
     product_short_description[2] = "Smartwatch for health tracking";
     price[2] = 249;
@@ -232,7 +232,7 @@ describe("anchor", () => {
     // expect(productDetails.price).to.equal(price);
 
   });
-  it.only("should display product list list", async () => {
+  it("should display product list list", async () => {
     const [productListPda] = PublicKey.findProgramAddressSync(
       [Buffer.from("product_list"), seller.publicKey.toBuffer()],
       program.programId
@@ -244,7 +244,7 @@ describe("anchor", () => {
     
     // expect(productList.products.length).to.equal(3);
   });
-  it.only("should add product to cart", async () => {
+  it("should add product to cart", async () => {
     await provider.connection.requestAirdrop(
       consumer.publicKey,
       2 * anchor.web3.LAMPORTS_PER_SOL
@@ -300,7 +300,7 @@ describe("anchor", () => {
     // expect(cart.quantity).to.equal(1);
   });
 
-  it.only("should add another product to cart", async () => {
+  it("should add another product to cart", async () => {
     const [cartPda] = PublicKey.findProgramAddressSync(
       [Buffer.from("cart"), 
         consumer.publicKey.toBuffer(), 
@@ -349,7 +349,7 @@ describe("anchor", () => {
     // expect(cart.productName).to.equal(product_name);
   });
 
-  it.only("should display cart list", async () => {
+  it("should display cart list", async () => {
     const [cartListPda] = PublicKey.findProgramAddressSync(
       [Buffer.from("cart_list"), consumer.publicKey.toBuffer()],
       program.programId
@@ -363,38 +363,33 @@ describe("anchor", () => {
     // expect(cartList.cartList.length).to.be.greaterThan(0);
   });
 
-  it.only("should intialize and create payment", async () => {
+  it("should intialize and create payment", async () => {
     await provider.connection.requestAirdrop(
-      buyer.publicKey,
+      owner.publicKey,
       2 * anchor.web3.LAMPORTS_PER_SOL
     );
     await new Promise((resolve) => setTimeout(resolve, 1000));
 
     const [paymentPda] = PublicKey.findProgramAddressSync(
-      [Buffer.from("payment"), buyer.publicKey.toBuffer()],
+      [Buffer.from("payment"), owner.publicKey.toBuffer()],
       program.programId
     );
-    const totalPaymentAmount = new BN(total_amount);
+    const totalPaymentAmount = new BN(total_amount || 1459);
     
-    const payment_tx = await program.methods.createPayment(
+    const tx = await program.methods.createPayment(
       totalPaymentAmount,
       paymentPda,
       null,
     ).accounts({
-      signer: buyer.publicKey,
+      signer: owner.publicKey,
       payments: paymentPda,
       systemProgram: SYSTEM_PROGRAM_ID,
-    } as any).signers([buyer]).rpc();
-    console.log("Transaction Signature: ",payment_tx);
-    
+    } as any).rpc();
+    console.log("Transaction Signature: ",tx);
+    payment_tx = tx;
     const payment = await program.account.payment.fetch(paymentPda);
     console.log("Payment Details: ",payment);
-    if (expect(payment.paymentStatus).to.have.property("pending")) {
-      console.log("Payment Not Intialized!");
-      require;
-    }else{
-      payment.txSignature = payment_tx;
-    }
+    console.log("Payment Id: ",bytesToUuid(payment.paymentId));
   });
 
   it("should create escrow and mint token", async () => {
@@ -413,7 +408,11 @@ describe("anchor", () => {
       ],
       program.programId
     );
-
+    const [paymentPda] = PublicKey.findProgramAddressSync(
+      [Buffer.from("payment"), owner.publicKey.toBuffer()],
+      program.programId
+    );
+    
     escrowAta = (
       await getOrCreateAssociatedTokenAccount(
         provider.connection,
@@ -445,7 +444,7 @@ describe("anchor", () => {
     userAta = (
       await getOrCreateAssociatedTokenAccount(
         provider.connection,
-        signer.payer,
+        owner.payer,
         mint,
         owner.publicKey
       )
@@ -459,13 +458,15 @@ describe("anchor", () => {
       owner.payer,
       100_000_000_000
     )
+    
     const tx = await program.methods.createEscrow(
       buyer.publicKey,
       seller.publicKey,
-      new anchor.BN(1499),
+      new anchor.BN(total_amount),
     ).accounts({
       owner: owner.publicKey,
       escrow: escrowPda,
+      payment: paymentPda,
       userAta: userAta,
       escrowAta: escrowAta,
       buyerAta: buyerAta,
@@ -477,7 +478,6 @@ describe("anchor", () => {
     
     console.log("---CREATED ESCROW---");
     
-
     const userBalance = await provider.connection.getTokenAccountBalance(userAta);
     const sellererBalance = await provider.connection.getTokenAccountBalance(sellerAta);
     const buyerBalance = await provider.connection.getTokenAccountBalance(buyerAta);
@@ -498,10 +498,9 @@ describe("anchor", () => {
       ],
       program.programId
     );
-    const lamports = (await convertUsdToLamports(1499));
+    const lamports = (await convertUsdToLamports(total_amount));
     const deposite_tx = await program.methods.depositEscrow(
       1,
-      new anchor.BN(lamports),
     ).accounts({
       escrow: escrowPda,
       owner: owner.publicKey,
@@ -517,7 +516,7 @@ describe("anchor", () => {
     console.log("AFTER DEPOSITE...");
 
     console.log("Grand Total (solana): ",(lamports /LAMPORTS_PER_SOL).toFixed(2) + "SOL");
-    console.log("Grand Total($): ",1499 + "$");
+    console.log("Grand Total($): ",total_amount + "$");
     
     const dUser = await provider.connection.getTokenAccountBalance(userAta);
     const dEscrow = await provider.connection.getTokenAccountBalance(escrowAta);
@@ -544,6 +543,10 @@ describe("anchor", () => {
       ],
       program.programId
     );
+    const [paymentPda] = PublicKey.findProgramAddressSync(
+      [Buffer.from("payment"), owner.publicKey.toBuffer()],
+      program.programId
+    );
     const escrowBefore = await program.account.escrow.fetch(escrowPda);
     expect(escrowBefore.releaseFund).to.be.true;
 
@@ -551,9 +554,9 @@ describe("anchor", () => {
     const lamports = (await convertUsdToLamports(usd));
     const withdraw_tx = await program.methods.withdrawEscrow(
       1,
-      new anchor.BN(lamports),
     ).accounts({
       escrow: escrowPda,
+      payment:paymentPda,
       owner: owner.publicKey,
       userAta: userAta,
       escrowAta: escrowAta,
@@ -562,7 +565,7 @@ describe("anchor", () => {
       systemProgram: SystemProgram.programId,
       tokenProgram: TOKEN_PROGRAM_ID,
     } as any).rpc();
-    console.log("Transaction Signature: ",withdraw_tx)
+    console.log("Transaction Signature: ",withdraw_tx);
 
     console.log("AFTER WITHDRAWL...");
 
@@ -583,60 +586,52 @@ describe("anchor", () => {
     expect(escrowAfter.escrowStatus).to.have.property("swapSuccess");
     expect(escrowAfter.releaseFund).to.be.false;
     });
+    
   it("should check & confirm payment status", async () => {
-    await provider.connection.requestAirdrop(
-      buyer.publicKey,
-      2 * anchor.web3.LAMPORTS_PER_SOL
-    );
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-
     const [paymentPda] = PublicKey.findProgramAddressSync(
-      [Buffer.from("payment"), buyer.publicKey.toBuffer()],
+      [Buffer.from("payment"), owner.publicKey.toBuffer()],
       program.programId
     );
-    const totalPaymentAmount = new BN(total_amount);
-    
-    const payment_tx = await program.methods.createPayment(
-      totalPaymentAmount,
-      paymentPda,
-      null,
-    ).accounts({
-      signer: buyer.publicKey,
-      payments: paymentPda,
-      systemProgram: SYSTEM_PROGRAM_ID,
-    } as any).signers([buyer]).rpc();
-    console.log("Transaction Signature: ",payment_tx);
     
     const payment = await program.account.payment.fetch(paymentPda);
-    console.log("Payment Details: ",payment);
-    if (expect(payment.paymentStatus).to.have.property("pending")) {
-      console.log("Payment Not Intialized!");
-      require;
-    }else{
-      payment.txSignature = payment_tx;
-    }
-  });
-    it("should palce order and show details",async()=>{
-    // const [orderPda] = PublicKey.findProgramAddressSync(
-    //   [Buffer.from("order"), buyer.publicKey.toBuffer()],
-    //   program.programId
-    // );
-
-    // const order_tx = await program.methods.createOrder(
-    //   product_id_bytes,
-    //   payment.paymentId,
-    //   product_id_bytes,
-    // ).accounts({
-    //   signer: buyer.publicKey,
-    //   order: orderPda,
-    //   cart: cartPda,
-    //   payment: paymentPda,
-    //   systemProgram: SYSTEM_PROGRAM_ID,
-    // } as any).signers([buyer]).rpc();
     
-    // const order = await program.account.order.fetch(orderPda);
+    if (expect(payment.paymentStatus).to.have.property("success")) {
+      payment.txSignature = payment_tx;
+    }else{
+      console.log("Payment Not Intialized!");
+    }
 
-    // // expect(payment.paymentAmount.toString()).to.equal(total_amount.toString());
-    // expect(order.orderStatus).to.have.property("pending");
+    console.log("Payment Details: ",payment);
+    console.log("Payment Amount: ",Number(payment.paymentAmount));
+    
+    expect(payment.paymentStatus).to.have.property("success");
+  });
+  it("should palce order and show details",async()=>{
+    await provider.connection.requestAirdrop(signer.publicKey, 2 * LAMPORTS_PER_SOL);
+    const [orderPda] = PublicKey.findProgramAddressSync(
+      [Buffer.from("order"), signer.publicKey.toBuffer()],
+      program.programId
+    );console.log("Order PDA:", orderPda.toBase58());
+
+    const [paymentPda] = PublicKey.findProgramAddressSync(
+      [Buffer.from("payment"), signer.publicKey.toBuffer()],
+      program.programId
+    );
+    const payment_id = (await program.account.payment.fetch(paymentPda)).paymentId;
+    const order_tx = await program.methods.createOrder(
+      String(bytesToUuid(payment_id)),
+    ).accounts({
+      signer: signer.publicKey,
+      order: orderPda,
+      payment:paymentPda,
+      systemProgram: SYSTEM_PROGRAM_ID,
+    } as any).signers([signer.payer]).rpc();
+    console.log("Transaction Signature: ",order_tx);
+    
+    const order = await program.account.order.fetch(orderPda);
+    console.log("Order details: ",order);
+    console.log("Order ID: ", bytesToUuid(order.orderId));
+    
+    expect(order.orderStatus).to.have.property("placed");
     });
 });
