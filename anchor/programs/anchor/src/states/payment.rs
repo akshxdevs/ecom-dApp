@@ -9,7 +9,7 @@ pub struct Payment{
     pub payment_method:PaymentMethod,
     pub payment_status:PaymentStatus,
     pub time_stamp:i64,
-    #[max_len(100)]
+    #[max_len(3)]
     pub tx_signature:Option<String>,
     pub payment_bump:u8,
 }
