@@ -8,7 +8,7 @@ import { BN } from "@coral-xyz/anchor";
 import { 
   createMint, 
   mintTo, 
-  TOKEN_PROGRAM_ID,
+  TOKEN_PROGRAM_ID,           
   getOrCreateAssociatedTokenAccount
 } from "@solana/spl-token";
 
