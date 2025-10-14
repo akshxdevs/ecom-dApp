@@ -1,5 +1,5 @@
 use anchor_lang::prelude::*;
-use crate::states::{order::{Order, OrderStatus, OrderTracking}, payment::{Payment}};
+use crate::states::{order::{Order, OrderStatus, OrderTracking}};
 use anchor_lang::solana_program::hash::{self};
 #[derive(Accounts)]
 pub struct CreateOrder<'info>{
