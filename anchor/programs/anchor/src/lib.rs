@@ -96,12 +96,9 @@ pub mod ecom_dapp {
     pub fn deposit_escrow(
         ctx: Context<DepositeEscrow>,
         _product_id: u32,
-        amount:u64,
     ) -> Result<()> {
         ctx.accounts.deposite_escrow(
-            // product_id,
             ctx.bumps.escrow,
-            amount
         )?;
         Ok(())
     }
@@ -109,25 +106,18 @@ pub mod ecom_dapp {
     pub fn withdraw_escrow(
         ctx: Context<WithdrawlEscrow>,
         _product_id: u32,
-        amount:u64,
     ) -> Result<()> {
         ctx.accounts.withdrawl_escrow(
-            // product_id,
             ctx.bumps.escrow,
-            amount
         )?;
         Ok(())
     }
     pub fn create_order(
         ctx: Context<CreateOrder>,
-        product_id:[u8;16],
-        payment_id:[u8;16],
-        tracking_id:[u8;16],
+        payment_id:String,
     )->Result<()> {
         ctx.accounts.create_order(
-            product_id, 
-            payment_id, 
-            tracking_id, 
+            payment_id,
             ctx.bumps.order
         )?;
         Ok(())
