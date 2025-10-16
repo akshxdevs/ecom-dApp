@@ -1,4 +1,5 @@
 import * as anchor from "@coral-xyz/anchor";
+import BN from "bn.js";
 import {
   PublicKey,
   SystemProgram,
@@ -28,24 +29,27 @@ function createProvider(wallet) {
         commitment:"processed"
     })
 }
-// Initialize and verify program on module load
 async function initializeProgram() {
-  console.log("Verifying program exists...");
-  const programInfo = await connection.getAccountInfo(ECOM_PROGRAM_ID);
-  if (programInfo) {
-    console.log("Program found on devnet!");
-    console.log(`Program is executable: ${programInfo.executable}`);
-  } else {
-    console.log("Program NOT found on devnet!");
-    console.log(programInfo);
+  try {
+    console.log("Verifying program exists...");
+    const programInfo = await connection.getAccountInfo(ECOM_PROGRAM_ID);
+    if (programInfo) {
+      console.log("Program found on devnet!");
+      console.log(`Program is executable: ${programInfo.executable}`);
+    } else {
+      console.log("Program NOT found on devnet!");
+      console.log(programInfo);
+    }
+  } catch (error) {
+    console.log("⚠️  Could not verify program (network issue):", error.message);
+    console.log("SDK will still work for local testing");
   }
 }
 
-// Run initialization
-initializeProgram().catch(console.error);
+initializeProgram().catch(console.error('Error initializing program'));
 
 export async function initCreateProduct(
-  secretKeyStr,
+  secretKeyArray, 
   product_name, 
   product_short_description,
   price,
@@ -55,7 +59,9 @@ export async function initCreateProduct(
   product_imgurl
 ) {
   try {
-    const wallet = new anchor.Wallet(secretKeyStr);
+    const secretKey = new Uint8Array(secretKeyArray);
+    const keypair = Keypair.fromSecretKey(secretKey);
+    const wallet = new anchor.Wallet(keypair);
     
     const provider = createProvider(wallet);
     anchor.setProvider(provider);
@@ -71,11 +77,11 @@ export async function initCreateProduct(
     const tx = await ecomProgram.methods.createProduct(
         product_name,
         product_short_description,
-        product_imgurl,
-        category,
-        division,
+        new BN(price * LAMPORTS_PER_SOL), 
+        { [category]: {} }, 
+        { [division]: {} }, 
         seller_name,
-        new anchor.BN(price * LAMPORTS_PER_SOL)
+        product_imgurl
       )
       .accounts({
         product: productPda,
