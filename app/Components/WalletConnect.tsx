@@ -2,7 +2,7 @@
 import { useWallet } from "@solana/wallet-adapter-react";
 import { useWalletModal } from "@solana/wallet-adapter-react-ui";
 import { useState, useEffect } from "react";
-import { ArrowBigRight, Check, Copy, LogOut, User2Icon, UserCircle2Icon } from "lucide-react";
+import { ArrowBigRight, UserCircle2Icon } from "lucide-react";
 import toast from "react-hot-toast";
 
 export default function WalletConnect() {
