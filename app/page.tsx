@@ -1,6 +1,7 @@
 "use client";
 import {motion}  from "framer-motion";
 import { Appbar } from "./Components/Appbar";
+import { Product } from "./Components/Products";
 
 export default function Home() {
   return (
@@ -9,11 +10,12 @@ export default function Home() {
         initial={{ y: -250 }}
         animate={{ y: 0 }}
         transition={{ type: 'spring', stiffness: 50}}
+        className="pb-1 border-b border-gray-800"
       >
         <Appbar/>
       </motion.div>
-      <div>
-
+      <div>        
+        <Product/>
       </div>
     </div>
   );
