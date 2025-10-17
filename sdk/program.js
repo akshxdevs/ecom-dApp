@@ -18,7 +18,6 @@ const local = "http://127.0.0.1:8899";
 const devnet = "https://api.devnet.solana.com";
 const connection = new Connection(devnet);
 
-// Simple wallet interface for compatibility
 function createSimpleWallet(keypair) {
   return {
     publicKey: keypair.publicKey,
