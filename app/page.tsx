@@ -1,7 +1,6 @@
 "use client";
 import {motion}  from "framer-motion";
 import { Appbar } from "./Components/Appbar";
-import { Product } from "./Components/Products";
 
 export default function Home() {
   return (
@@ -14,9 +13,6 @@ export default function Home() {
       >
         <Appbar/>
       </motion.div>
-      <div>        
-        <Product/>
-      </div>
     </div>
   );
 }
