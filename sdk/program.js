@@ -39,6 +39,39 @@ function createProvider(wallet) {
         commitment:"processed"
     })
 }
+export function getCategoryVariant(category) {
+  switch (category) {
+    case "Electronics":
+      return { electronics: {} };
+    case "BeautyAndPersonalCare":
+      return { beautyAndPersonalCare: {} };
+    case "SnacksAndDrinks":
+      return { snacksAndDrinks: {} };
+    case "HouseholdEssentials":
+      return { householdEssentials: {} };
+    case "GroceryAndKitchen":
+      return { groceryAndKitchen: {} };
+    default:
+      throw new Error(`Invalid category: ${category}`);
+  }
+}
+
+export function getDivisionVariant(division) {
+  switch (division) {
+    case "Mobile":
+      return { mobile: {} };
+    case "Laptop":
+      return { laptop: {} };
+    case "Headphone":
+      return { headphone: {} };
+    case "SmartWatch":
+      return { smartWatch: {} };
+    case "ComputerPeripherals":
+      return { computerPeripherals: {} };
+    default:
+      throw new Error(`Invalid division: ${division}`);
+  }
+}
 export async function initializeProgram() {
   try {
     console.log("Verifying program exists...");
@@ -51,7 +84,7 @@ export async function initializeProgram() {
       console.log(programInfo);
     }
   } catch (error) {
-    console.log("⚠️  Could not verify program (network issue):", error.message);
+    console.log("Could not verify program (network issue):", error.message);
     console.log("SDK will still work for local testing");
   }
 }
@@ -85,15 +118,33 @@ export async function initCreateProduct(
       [Buffer.from("product_list"), walletAdapter.publicKey.toBuffer()],
       ECOM_PROGRAM_ID
     );
-    console.log("Creating product with PDA:", productPda.toString());
-    console.log("Creating productList  with PDA:", productListPda.toString());
 
+    try {
+      const existingProduct = await ecomProgram.account.product.fetch(productPda);
+      if (existingProduct) {
+        throw new Error("Product with this name already exists");
+      }
+    } catch (err) {
+      if (err.message.includes("Account does not exist")) {
+        console.log("Product doesn't exist, proceeding with creation...");
+      } else if (err.message.includes("Product with this name already exists")) {
+        throw err; 
+      } else {
+        console.log("Error checking existing product:", err.message);
+      }
+    }
+
+    const categoryVariant = getCategoryVariant(category);
+    const divisionVariant = getDivisionVariant(division);
+    
+    await connection.getLatestBlockhash();
+    
     const tx = await ecomProgram.methods.createProduct(
         product_name,
         product_short_description,
-        price, // Pass price as-is (u32), not in lamports
-        { [category]: {} }, 
-        { [division]: {} }, 
+        new BN(Math.round(price * 100)), 
+        categoryVariant,
+        divisionVariant,
         seller_name,
         product_imgurl
       )
@@ -103,12 +154,19 @@ export async function initCreateProduct(
         seller: walletAdapter.publicKey,
         systemProgram: SystemProgram.programId,
       })
-      .rpc();
+      .rpc({
+        skipPreflight: false,
+        preflightCommitment: "confirmed",
+        commitment: "confirmed"
+      });
 
     console.log("Product created successfully! Transaction:", tx);
     console.log("Product PDA:", productPda.toString());
     console.log("Product List PDA:", productListPda.toString());
 
+    const productList = await ecomProgram.account.productsList.fetch(productListPda);
+    console.log("Product Details: ",productList);
+    
     
     return {
       success: true,
@@ -125,7 +183,6 @@ export async function initCreateProduct(
   }
 }
 
-// Fetch a single product by PDA
 export async function fetchProduct(productPdaString, walletAdapter) {
   try {
     const provider = createProvider(walletAdapter);
@@ -161,21 +218,54 @@ export async function fetchAllProductsFromSeller(sellerPubkeyString, walletAdapt
       ECOM_PROGRAM_ID
     );
     
-    const productListData = await ecomProgram.account.productsList.fetch(productListPda);
+    console.log("Fetching products for seller:", sellerPubkeyString);
+    console.log("ProductList PDA:", productListPda.toString());
+    
+    let productListData;
+    try {
+      productListData = await ecomProgram.account.productsList.fetch(productListPda);
+      console.log("ProductList data:", productListData);
+      console.log("Number of products in list:", productListData.products.length);
+    } catch (err) {
+      console.error("Error fetching ProductsList:", err);
+      if (err.message.includes("Account does not exist")) {
+        console.log(`No products found for seller ${sellerPubkeyString}`);
+        return {
+          success: true,
+          products: []
+        };
+      }
+      throw err;
+    }
     
     // Fetch each product
     const products = [];
+    console.log("Fetching individual products...");
     for (const productPubkey of productListData.products) {
       try {
+        console.log("Fetching product:", productPubkey.toString());
         const productData = await ecomProgram.account.product.fetch(productPubkey);
-        products.push({
+        console.log("Product data:", productData);
+        
+        // Check if productData is valid
+        if (!productData) {
+          console.error("Product data is null/undefined for:", productPubkey.toString());
+          continue;
+        }
+        
+        const formattedProduct = {
           pubkey: productPubkey.toString(),
-          ...productData
-        });
+          ...formatProductData(productData)
+        };
+        console.log("Formatted product:", formattedProduct);
+        products.push(formattedProduct);
       } catch (err) {
         console.error(`Error fetching product ${productPubkey.toString()}:`, err.message);
+        console.error("Full error:", err);
       }
     }
+    
+    console.log("Total products fetched:", products.length);
     
     return {
       success: true,
@@ -198,11 +288,9 @@ export async function fetchAllProducts(walletAdapter) {
     anchor.setProvider(provider);
     const ecomProgram = new anchor.Program(IDL, provider);
     
-    // Hardcoded seller public keys from your test file
-    // You can add more sellers here
+    // Use the current wallet's public key as a seller
     const sellers = [
-      // Add your seller public keys here
-      // Example: "YourSellerPublicKeyHere"
+      walletAdapter.publicKey.toString()
     ];
     
     let allProducts = [];
@@ -234,19 +322,21 @@ export async function fetchAllProducts(walletAdapter) {
 
 // Helper function to convert product data to display format
 export function formatProductData(productData) {
+  console.log("Raw product data:", productData);
+  
   return {
-    productId: productData.productId,
-    productName: productData.productName,
-    productShortDescription: productData.productShortDescription,
-    price: productData.price / 100, // Convert cents to dollars/SOL
-    category: productData.category,
-    division: productData.division,
-    sellerName: productData.sellerName,
-    sellerPubkey: productData.sellerPubkey.toString(),
-    productImgurl: productData.productImgurl,
-    quantity: productData.quantity,
-    rating: productData.rating,
-    stockStatus: productData.stockStatus
+    productId: productData.product_id || [],
+    productName: productData.product_name || "",
+    productShortDescription: productData.product_short_description || "",
+    price: (productData.price || 0) / 100, // Convert cents to dollars/SOL
+    category: productData.category || {},
+    division: productData.division || {},
+    sellerName: productData.seller_name || "",
+    sellerPubkey: productData.seller_pubkey ? productData.seller_pubkey.toString() : "",
+    productImgurl: productData.product_imgurl || "",
+    quantity: productData.quantity || 0,
+    rating: productData.rating || 0,
+    stockStatus: productData.stock_status || {}
   };
 }
 
