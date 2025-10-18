@@ -43,3 +43,15 @@ next-env.d.ts
 #solana 
 
 test-ledger
+
+# Memory optimization - ignore cache files
+node_modules/.cache
+.next/cache
+*.log
+*.tmp
+*.temp
+
+# Anchor build artifacts
+anchor/target/
+anchor/.anchor/
+anchor/node_modules/
