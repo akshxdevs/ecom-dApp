@@ -1,18 +1,16 @@
-import localFont from "next/font/local";
 import WalletConnect from "./WalletConnect";
 import {  BellIcon, PlusSquareIcon, SearchIcon, ShoppingBagIcon, Wallet2Icon } from "lucide-react";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { Connection, clusterApiUrl,LAMPORTS_PER_SOL } from "@solana/web3.js";
 import { useEffect, useState } from "react";
+import { useShowCreateModal } from "../createproduct/page";
 
-// const alone = localFont({
-//   src: '../fonts/Ventus/Ventus Italic.otf',
-// });
+
 export const Appbar = () => {
     const { publicKey, connected } = useWallet();
     const connection = new Connection(clusterApiUrl("devnet"));
     const [balance,setBalance] = useState<number>(0.0013);
-
+    const {showCreateModal, setShowCreateModal} = useShowCreateModal();
     useEffect(()=>{
         fetchBalance();
     },[publicKey])
@@ -42,7 +40,7 @@ export const Appbar = () => {
                                 className="w-full text-md py-1 outline-none border-none"
                             />
                         </div>
-                        <button className="flex items-center text-slate-400 gap-2 p-2 text-sm font-semibold border-2 border-blue-900 rounded-lg hover:text-slate-100">
+                        <button onClick={()=>setShowCreateModal(true)} className="flex items-center text-slate-400 gap-2 p-2 text-sm font-semibold border-2 border-blue-900 rounded-lg hover:text-slate-100">
                             <PlusSquareIcon size={18} />
                             List a product
                         </button>
