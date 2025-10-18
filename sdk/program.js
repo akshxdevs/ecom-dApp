@@ -40,6 +40,11 @@ function createProvider(wallet) {
     })
 }
 export function getCategoryVariant(category) {
+  // Handle empty or undefined category
+  if (!category || category.trim() === "") {
+    category = "Electronics"; // Default category
+  }
+  
   switch (category) {
     case "Electronics":
       return { electronics: {} };
@@ -57,6 +62,11 @@ export function getCategoryVariant(category) {
 }
 
 export function getDivisionVariant(division) {
+  // Handle empty or undefined division
+  if (!division || division.trim() === "") {
+    division = "Mobile"; // Default division
+  }
+  
   switch (division) {
     case "Mobile":
       return { mobile: {} };
@@ -90,6 +100,26 @@ export async function initializeProgram() {
 }
 
 
+// Helper function to generate unique product name
+function generateUniqueProductName(baseName) {
+  // Truncate base name to fit within Solana's seed length limits
+  const maxBaseLength = 20; // Leave room for timestamp and suffix
+  const truncatedBase = baseName.substring(0, maxBaseLength);
+  
+  // Use shorter timestamp (last 6 digits) and shorter random suffix
+  const shortTimestamp = Date.now().toString().slice(-6);
+  const randomSuffix = Math.random().toString(36).substring(2, 6); // 4 chars instead of 6
+  
+  const uniqueName = `${truncatedBase}_${shortTimestamp}_${randomSuffix}`;
+  
+  // Ensure total length doesn't exceed Solana's limits (32 bytes max)
+  if (uniqueName.length > 32) {
+    return `${truncatedBase}_${randomSuffix}`;
+  }
+  
+  return uniqueName;
+}
+
 export async function initCreateProduct(
   walletAdapter, 
   product_name, 
@@ -104,35 +134,69 @@ export async function initCreateProduct(
     if (!walletAdapter || !walletAdapter.publicKey) {
       throw new Error("Wallet not connected");
     }
+    
+    // Validate product name length
+    if (product_name.length > 32) {
+      throw new Error("Product name is too long. Maximum 32 characters allowed.");
+    }
 
     const provider = createProvider(walletAdapter);
     anchor.setProvider(provider);
     
     const ecomProgram = new anchor.Program(IDL, provider);
 
-    const [productPda] = PublicKey.findProgramAddressSync(
-      [Buffer.from("product"), walletAdapter.publicKey.toBuffer(), Buffer.from(product_name)],
-      ECOM_PROGRAM_ID
-    );
+    // Try to create with original name first, then generate unique name if needed
+    let finalProductName = product_name;
+    let productPda;
+    let attempts = 0;
+    const maxAttempts = 3;
+    
+    while (attempts < maxAttempts) {
+      try {
+        productPda = PublicKey.findProgramAddressSync(
+          [Buffer.from("product"), walletAdapter.publicKey.toBuffer(), Buffer.from(finalProductName)],
+          ECOM_PROGRAM_ID
+        )[0];
+      } catch (err) {
+        if (err.message.includes("Max seed length exceeded")) {
+          // If still too long, use just random suffix
+          finalProductName = `prod_${Math.random().toString(36).substring(2, 8)}`;
+          attempts++;
+          continue;
+        } else {
+          throw err;
+        }
+      }
+      
+      try {
+        const existingProduct = await ecomProgram.account.product.fetch(productPda);
+        if (existingProduct) {
+          // Product exists, generate unique name
+          finalProductName = generateUniqueProductName(product_name);
+          attempts++;
+          console.log(`Product name conflict, trying: ${finalProductName}`);
+        } else {
+          break; // Product doesn't exist, we can proceed
+        }
+      } catch (err) {
+        if (err.message.includes("Account does not exist")) {
+          break; // Product doesn't exist, we can proceed
+        } else {
+          throw err; // Some other error
+        }
+      }
+    }
+    
+    if (attempts >= maxAttempts) {
+      throw new Error("Unable to generate unique product name after multiple attempts");
+    }
+    
+    console.log(`Using product name: ${finalProductName}`);
     const [productListPda] = PublicKey.findProgramAddressSync(
       [Buffer.from("product_list"), walletAdapter.publicKey.toBuffer()],
       ECOM_PROGRAM_ID
     );
 
-    try {
-      const existingProduct = await ecomProgram.account.product.fetch(productPda);
-      if (existingProduct) {
-        throw new Error("Product with this name already exists");
-      }
-    } catch (err) {
-      if (err.message.includes("Account does not exist")) {
-        console.log("Product doesn't exist, proceeding with creation...");
-      } else if (err.message.includes("Product with this name already exists")) {
-        throw err; 
-      } else {
-        console.log("Error checking existing product:", err.message);
-      }
-    }
 
     const categoryVariant = getCategoryVariant(category);
     const divisionVariant = getDivisionVariant(division);
@@ -140,7 +204,7 @@ export async function initCreateProduct(
     await connection.getLatestBlockhash();
     
     const tx = await ecomProgram.methods.createProduct(
-        product_name,
+        finalProductName,
         product_short_description,
         new BN(Math.round(price * 100)), 
         categoryVariant,
