@@ -29,6 +29,9 @@ importers:
       axios:
         specifier: ^1.12.2
         version: 1.12.2
+      bn.js:
+        specifier: ^5.2.2
+        version: 5.2.2
       framer-motion:
         specifier: ^12.23.22
         version: 12.23.22(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
