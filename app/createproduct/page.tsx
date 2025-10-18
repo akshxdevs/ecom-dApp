@@ -58,7 +58,7 @@ export const useShowCreateModal = () => {
 export const selectContext = createContext<Select | undefined>(undefined);
 
 export function SelectProvider({children}: {children:React.ReactNode}) {
-    const [selected,setSelected] = useState("");
+    const [selected,setSelected] = useState("overview");
 
     return( 
         <selectContext.Provider value={{selected,setSelected}}>{children}</selectContext.Provider>
@@ -82,20 +82,19 @@ function CreateProductPage(){
   const {selected,setSelected} = useSelector();
   
   const [formData, setFormData] = useState({
-    product_name: "iPhone 17 Pro",
-    product_short_description: "Premium flagship smartphone",
-    price: "799",
-    category: "Electronics",
-    division: "Mobile",
-    seller_name: "Apple",
-    product_imgurl: "https://example.com/iphone.jpg",
+    product_name: "",
+    product_short_description: "",
+    price: "",
+    category: "",
+    division: "",
+    seller_name: "",
+    product_imgurl: "",
     quantity: 1
   });
 
 
 
 
-  // Fetch products from blockchain
   const loadProducts = async () => {
     if (!publicKey) {
       setError("Please connect your wallet first");
@@ -115,6 +114,7 @@ function CreateProductPage(){
       console.log("Loading products for public key:", publicKey.toString());
       const result = await fetchAllProductsFromSeller(publicKey.toString(), walletAdapter);
       console.log("Fetch result:", result);
+      
       if (result.success && result.products) {
         setProducts(result.products);
         console.log(`Loaded ${result.products.length} products`);
@@ -133,7 +133,6 @@ function CreateProductPage(){
   };
 
 
-  // Create new product
   const handleCreateProduct = async () => {
     if (creating) {
       return; 
@@ -204,7 +203,6 @@ function CreateProductPage(){
     }
   };
 
-  // Load products when wallet connects
   useEffect(() => {
     if (publicKey) {
       loadProducts();
@@ -225,25 +223,23 @@ function CreateProductPage(){
 
   return (
     <div>
-      <motion.div
-        initial={{ y: -250 }}
-        animate={{ y: 0 }}
-        transition={{ type: 'spring', stiffness: 50}}
-        className="pb-1 border-b border-gray-800 mb-3"
+      <div
+
+        className="pb-1 border-b border-gray-800"
       >
         <Appbar/>
-      </motion.div>
-      <div className="w-full flex justify-between">
-        <div className="w-[20%] h-screen py-2 mt-10 text-slate-200 bg-zinc-900 rounded-tr-xl">
-           <div className="flex justify-end mr-10">
-                <div className="flex flex-col gap-4 border-b pb-2 border-gray-600">
-                    <div className=" text-lg pt-2 pb-6 border-b border-gray-600">
-                        <div className="flex items-center gap-3 text-md px-2 py-1  rounded-lg hover:bg-zinc-700">
-                            <MdSell/>
-                            <button>Sellers Hub</button>
-                        </div>
-                    </div>
-                    <div className={`flex items-center gap-3 text-md mt-5  px-2 py-1 rounded-lg ${selected === "overview" ? "text-[#016cff] bg-[#eaf5fe]" : "hover:bg-zinc-700"}`}>
+      </div>
+      <div className="w-full flex justify-between mt-1">
+        <div className="w-[23%] h-screen py-2 text-slate-200 bg-zinc-900 rounded-tr-xl">
+           <div className="flex flex-col justify-end mx-4">
+            <div className="flex text-lg pt-2 pb-6 px-10">
+              <div className="w-full flex items-center gap-5 text-md px-2 py-1 rounded-lg hover:bg-zinc-700">
+                <MdSell/>
+                <button>Sellers Hub</button>
+              </div>
+            </div>
+                <div className="flex flex-col gap-4 pt-1 pb-8 px-10 border-b border-t border-zinc-700">
+                    <div className={`flex items-center gap-3 text-md mt-3  px-2 py-1 rounded-lg ${selected === "overview" ? "text-[#016cff] bg-[#eaf5fe]" : "hover:bg-zinc-700"}`}>
                         <GrOverview/>
                         <button onClick={()=>setSelected("overview")}>Overview</button>
                     </div>
@@ -287,11 +283,10 @@ function CreateProductPage(){
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ duration: 0.5, delay: index * 0.1 }}
                     >
-                      {/* Product Image */}
                       <div className="h-48 bg-gradient-to-br from-purple-100 to-blue-100 flex items-center justify-center">
                         {product.productImgurl ? (
                           <img 
-                            src={product.productImgurl} 
+                            src={product.productImgurl || "https://example.com/iphone.jpg"} 
                             alt={product.productName}
                             className="w-full h-full object-cover"
                           />
@@ -300,7 +295,6 @@ function CreateProductPage(){
                         )}
                       </div>
 
-                      {/* Product Info */}
                       <div className="p-6">
                         <div className="flex justify-between items-start mb-2">
                           <h3 className="text-xl font-bold text-gray-800">{product.productName}</h3>
