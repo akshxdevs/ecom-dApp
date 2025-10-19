@@ -3,12 +3,7 @@ import BN from "bn.js";
 import {
   PublicKey,
   SystemProgram,
-  TransactionInstruction,
-  Transaction,
-  sendAndConfirmTransaction,
   Connection,
-  LAMPORTS_PER_SOL,
-  Keypair,
 } from "@solana/web3.js";
 import IDL from './ecom_dapp.json';
 
@@ -18,21 +13,7 @@ const local = "http://127.0.0.1:8899";
 const devnet = "https://api.devnet.solana.com";
 const connection = new Connection(devnet);
 
-function createSimpleWallet(keypair) {
-  return {
-    publicKey: keypair.publicKey,
-    signTransaction: async (tx) => {
-      tx.sign(keypair);
-      return tx;
-    },
-    signAllTransactions: async (txs) => {
-      return txs.map(tx => {
-        tx.sign(keypair);
-        return tx;
-      });
-    },
-  };
-}
+
 
 function createProvider(wallet) {
     return new anchor.AnchorProvider(connection, wallet, {
@@ -40,9 +21,8 @@ function createProvider(wallet) {
     })
 }
 export function getCategoryVariant(category) {
-  // Handle empty or undefined category
   if (!category || category.trim() === "") {
-    category = "Electronics"; // Default category
+    category = ""; 
   }
   
   switch (category) {
@@ -62,9 +42,8 @@ export function getCategoryVariant(category) {
 }
 
 export function getDivisionVariant(division) {
-  // Handle empty or undefined division
   if (!division || division.trim() === "") {
-    division = "Mobile"; // Default division
+    division = ""; 
   }
   
   switch (division) {
@@ -99,27 +78,6 @@ export async function initializeProgram() {
   }
 }
 
-
-// Helper function to generate unique product name
-function generateUniqueProductName(baseName) {
-  // Truncate base name to fit within Solana's seed length limits
-  const maxBaseLength = 20; // Leave room for timestamp and suffix
-  const truncatedBase = baseName.substring(0, maxBaseLength);
-  
-  // Use shorter timestamp (last 6 digits) and shorter random suffix
-  const shortTimestamp = Date.now().toString().slice(-6);
-  const randomSuffix = Math.random().toString(36).substring(2, 6); // 4 chars instead of 6
-  
-  const uniqueName = `${truncatedBase}_${shortTimestamp}_${randomSuffix}`;
-  
-  // Ensure total length doesn't exceed Solana's limits (32 bytes max)
-  if (uniqueName.length > 32) {
-    return `${truncatedBase}_${randomSuffix}`;
-  }
-  
-  return uniqueName;
-}
-
 export async function initCreateProduct(
   walletAdapter, 
   product_name, 
@@ -135,54 +93,37 @@ export async function initCreateProduct(
       throw new Error("Wallet not connected");
     }
     
-    // Validate product name length
-    if (product_name.length > 32) {
-      throw new Error("Product name is too long. Maximum 32 characters allowed.");
-    }
-
     const provider = createProvider(walletAdapter);
     anchor.setProvider(provider);
     
     const ecomProgram = new anchor.Program(IDL, provider);
 
-    // Try to create with original name first, then generate unique name if needed
-    let finalProductName = product_name;
+ 
     let productPda;
     let attempts = 0;
     const maxAttempts = 3;
     
-    while (attempts < maxAttempts) {
+    while (attempts <= maxAttempts) {
       try {
         productPda = PublicKey.findProgramAddressSync(
-          [Buffer.from("product"), walletAdapter.publicKey.toBuffer(), Buffer.from(finalProductName)],
+          [Buffer.from("product"), walletAdapter.publicKey.toBuffer(), Buffer.from(product_name)],
           ECOM_PROGRAM_ID
         )[0];
       } catch (err) {
-        if (err.message.includes("Max seed length exceeded")) {
-          // If still too long, use just random suffix
-          finalProductName = `prod_${Math.random().toString(36).substring(2, 8)}`;
-          attempts++;
-          continue;
-        } else {
           throw err;
-        }
       }
       
       try {
         const existingProduct = await ecomProgram.account.product.fetch(productPda);
         if (existingProduct) {
-          // Product exists, generate unique name
-          finalProductName = generateUniqueProductName(product_name);
-          attempts++;
-          console.log(`Product name conflict, trying: ${finalProductName}`);
         } else {
-          break; // Product doesn't exist, we can proceed
+          break; 
         }
       } catch (err) {
         if (err.message.includes("Account does not exist")) {
-          break; // Product doesn't exist, we can proceed
+          break; 
         } else {
-          throw err; // Some other error
+          throw err;
         }
       }
     }
@@ -191,12 +132,11 @@ export async function initCreateProduct(
       throw new Error("Unable to generate unique product name after multiple attempts");
     }
     
-    console.log(`Using product name: ${finalProductName}`);
+    console.log(`Using product name: ${product_name}`);
     const [productListPda] = PublicKey.findProgramAddressSync(
       [Buffer.from("product_list"), walletAdapter.publicKey.toBuffer()],
       ECOM_PROGRAM_ID
     );
-
 
     const categoryVariant = getCategoryVariant(category);
     const divisionVariant = getDivisionVariant(division);
@@ -204,7 +144,7 @@ export async function initCreateProduct(
     await connection.getLatestBlockhash();
     
     const tx = await ecomProgram.methods.createProduct(
-        finalProductName,
+        product_name,
         product_short_description,
         new BN(Math.round(price * 100)), 
         categoryVariant,
@@ -230,7 +170,6 @@ export async function initCreateProduct(
 
     const productList = await ecomProgram.account.productsList.fetch(productListPda);
     console.log("Product Details: ",productList);
-    
     
     return {
       success: true,
@@ -269,7 +208,6 @@ export async function fetchProduct(productPdaString, walletAdapter) {
   }
 }
 
-// Fetch all products from a seller's product list
 export async function fetchAllProductsFromSeller(sellerPubkeyString, walletAdapter) {
   try {
     const provider = createProvider(walletAdapter);
@@ -282,28 +220,8 @@ export async function fetchAllProductsFromSeller(sellerPubkeyString, walletAdapt
       ECOM_PROGRAM_ID
     );
     
-    console.log("Fetching products for seller:", sellerPubkeyString);
-    console.log("ProductList PDA:", productListPda.toString());
-    
-    let productListData;
-    try {
-      productListData = await ecomProgram.account.productsList.fetch(productListPda);
-      console.log("ProductList data:", productListData);
-      console.log("Number of products in list:", productListData.products.length);
-    } catch (err) {
-      console.error("Error fetching ProductsList:", err);
-      if (err.message.includes("Account does not exist")) {
-        console.log(`No products found for seller ${sellerPubkeyString}`);
-        return {
-          success: true,
-          products: []
-        };
-      }
-      throw err;
-    }
-    
-    // Fetch each product
     const products = [];
+    const productListData = await ecomProgram.account.productsList.fetch(productListPda);
     console.log("Fetching individual products...");
     for (const productPubkey of productListData.products) {
       try {
@@ -311,7 +229,6 @@ export async function fetchAllProductsFromSeller(sellerPubkeyString, walletAdapt
         const productData = await ecomProgram.account.product.fetch(productPubkey);
         console.log("Product data:", productData);
         
-        // Check if productData is valid
         if (!productData) {
           console.error("Product data is null/undefined for:", productPubkey.toString());
           continue;
@@ -345,7 +262,6 @@ export async function fetchAllProductsFromSeller(sellerPubkeyString, walletAdapt
   }
 }
 
-// Fetch all products from multiple sellers (hardcoded sellers)
 export async function fetchAllProducts(walletAdapter) {
   try {
     const provider = createProvider(walletAdapter);
@@ -389,18 +305,18 @@ export function formatProductData(productData) {
   console.log("Raw product data:", productData);
   
   return {
-    productId: productData.product_id || [],
-    productName: productData.product_name || "",
-    productShortDescription: productData.product_short_description || "",
-    price: (productData.price || 0) / 100, // Convert cents to dollars/SOL
+    productId: productData.productId || [],
+    productName: productData.productName || "",
+    productShortDescription: productData.productShortDescription || "",
+    price: (productData.price || 0), 
     category: productData.category || {},
     division: productData.division || {},
-    sellerName: productData.seller_name || "",
-    sellerPubkey: productData.seller_pubkey ? productData.seller_pubkey.toString() : "",
-    productImgurl: productData.product_imgurl || "",
+    sellerName: productData.sellerName || "",
+    sellerPubkey: productData.sellerPubkey ? productData.sellerPubkey.toString() : "",
+    productImgurl: productData.productImgurl || "",
     quantity: productData.quantity || 0,
     rating: productData.rating || 0,
-    stockStatus: productData.stock_status || {}
+    stockStatus: productData.stockStatus || {}
   };
 }
 
