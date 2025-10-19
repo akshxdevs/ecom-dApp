@@ -22,7 +22,7 @@ function createProvider(wallet) {
 }
 export function getCategoryVariant(category) {
   if (!category || category.trim() === "") {
-    category = ""; 
+    category = "Electronics"; 
   }
   
   switch (category) {
@@ -43,7 +43,7 @@ export function getCategoryVariant(category) {
 
 export function getDivisionVariant(division) {
   if (!division || division.trim() === "") {
-    division = ""; 
+    division = "Mobile"; 
   }
   
   switch (division) {
@@ -140,7 +140,8 @@ export async function initCreateProduct(
 
     const categoryVariant = getCategoryVariant(category);
     const divisionVariant = getDivisionVariant(division);
-    
+
+
     await connection.getLatestBlockhash();
     
     const tx = await ecomProgram.methods.createProduct(
@@ -170,6 +171,8 @@ export async function initCreateProduct(
 
     const productList = await ecomProgram.account.productsList.fetch(productListPda);
     console.log("Product Details: ",productList);
+    console.log("Category: ",category);
+    console.log("Category Varient: ",categoryVariant);
     
     return {
       success: true,
@@ -266,9 +269,7 @@ export async function fetchAllProducts(walletAdapter) {
   try {
     const provider = createProvider(walletAdapter);
     anchor.setProvider(provider);
-    const ecomProgram = new anchor.Program(IDL, provider);
     
-    // Use the current wallet's public key as a seller
     const sellers = [
       walletAdapter.publicKey.toString()
     ];
