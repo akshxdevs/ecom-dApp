@@ -82,17 +82,15 @@ function CreateProductPage(){
   const {selected,setSelected} = useSelector();
   
   const [formData, setFormData] = useState({
-    product_name: "",
-    product_short_description: "",
+    productName: "",
+    productShortDescription: "",
     price: "",
     category: "",
     division: "",
-    seller_name: "",
-    product_imgurl: "",
-    quantity: 1
+    sellerName: "",
+    productImgurl: "",
+    quantity: 0
   });
-
-
 
 
   const loadProducts = async () => {
@@ -138,7 +136,7 @@ function CreateProductPage(){
       return; 
     }
 
-    if (!formData.product_name || !formData.product_short_description || !formData.price) {
+    if (!formData.productName || !formData.productShortDescription || !formData.price) {
       setError("Please fill in all required fields");
       return;
     }
@@ -156,26 +154,26 @@ function CreateProductPage(){
       
       const result = await initCreateProduct(
         walletAdapter,
-        formData.product_name,
-        formData.product_short_description,
+        formData.productName,
+        formData.productShortDescription,
         formData.price, 
         formData.category,
         formData.division,
-        formData.seller_name,
-        formData.product_imgurl
+        formData.sellerName,
+        formData.productImgurl
       );
 
       if (result.success) {
         setShowCreateModal(false);
         setFormData({
-          product_name: "",
-          product_short_description: "",
+          productName: "",
+          productShortDescription: "",
           price: "",
           category: "Electronics",
           division: "Mobile",
-          seller_name: "",
-          product_imgurl: "",
-          quantity: 1
+          sellerName: "",
+          productImgurl: "",
+          quantity: 0
         });
         console.log(result);
         console.log("Product PDA:", result.productPda);
@@ -320,15 +318,6 @@ function CreateProductPage(){
                             {getStockStatus(product.stockStatus)}
                           </span>
                         </div>
-
-                        <div className="flex justify-between items-center text-sm text-gray-500 mb-4">
-                          <span>Seller: {product.sellerName}</span>
-                          <span>⭐ {product.rating.toFixed(1)}</span>
-                        </div>
-
-                        <button className="w-full py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg font-semibold hover:shadow-lg transition-all duration-300">
-                          Add to Cart
-                        </button>
                       </div>
                     </motion.div>
                   ))}
@@ -363,8 +352,8 @@ function CreateProductPage(){
                   </label>
                   <input
                     type="text"
-                    value={formData.product_name}
-                    onChange={(e) => setFormData({ ...formData, product_name: e.target.value })}
+                    value={formData.productName}
+                    onChange={(e) => setFormData({ ...formData, productName: e.target.value })}
                     className="w-fulltext-black text-black px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-600 focus:border-transparent"
                     placeholder="e.g., iPhone 17 Pro"
                   />
@@ -375,8 +364,8 @@ function CreateProductPage(){
                     Short Description *
                   </label>
                   <textarea
-                    value={formData.product_short_description}
-                    onChange={(e) => setFormData({ ...formData, product_short_description: e.target.value })}
+                    value={formData.productShortDescription}
+                    onChange={(e) => setFormData({ ...formData, productShortDescription: e.target.value })}
                     className="w-full text-black px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-600 focus:border-transparent"
                     rows={3}
                     placeholder="Brief description of the product"
@@ -453,8 +442,8 @@ function CreateProductPage(){
                   </label>
                   <input
                     type="text"
-                    value={formData.seller_name}
-                    onChange={(e) => setFormData({ ...formData, seller_name: e.target.value })}
+                    value={formData.sellerName}
+                    onChange={(e) => setFormData({ ...formData, sellerName: e.target.value })}
                     className="w-full text-black px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-600 focus:border-transparent"
                     placeholder={"Your seller name"}
                   />
@@ -466,8 +455,8 @@ function CreateProductPage(){
                   </label>
                   <input
                     type="url"
-                    value={formData.product_imgurl}
-                    onChange={(e) => setFormData({ ...formData, product_imgurl: e.target.value })}
+                    value={formData.productImgurl}
+                    onChange={(e) => setFormData({ ...formData, productImgurl: e.target.value })}
                     className="w-full text-black px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-600 focus:border-transparent"
                     placeholder="https://example.com/product-image.jpg"
                   />
