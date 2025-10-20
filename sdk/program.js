@@ -300,9 +300,23 @@ export async function fetchAllProducts(walletAdapter) {
   }
 }
 
-// Helper function to convert product data to display format
 export function formatProductData(productData) {
   console.log("Raw product data:", productData);
+  const normalizePublicKey = (input) => {
+    try {
+      if (!input) return "";
+      // If already a string, trim and try to parse
+      if (typeof input === "string") {
+        const trimmed = input.trim();
+        return new PublicKey(trimmed).toBase58();
+      }
+      // PublicKey, Buffer, Uint8Array, number[] are accepted by constructor
+      return new PublicKey(input).toBase58();
+    } catch (e) {
+      console.warn("Failed to normalize public key:", input);
+      return "";
+    }
+  };
   
   return {
     productId: productData.productId || [],
@@ -312,11 +326,122 @@ export function formatProductData(productData) {
     category: productData.category || {},
     division: productData.division || {},
     sellerName: productData.sellerName || "",
-    sellerPubkey: productData.sellerPubkey ? productData.sellerPubkey.toString() : "",
+    sellerPubkey: normalizePublicKey(productData.sellerPubkey),
     productImgurl: productData.productImgurl || "",
     quantity: productData.quantity || 0,
     rating: productData.rating || 0,
-    stockStatus: productData.stockStatus || {}
+    stockStatus: productData.stockStatus || false
   };
 }
 
+export async function AddToCart(
+  walletAdapter,
+  sellerPubkeyString,
+  product_name, 
+  quantity, 
+  price, 
+  product_imgurl){
+
+  try {
+    if (!walletAdapter || !walletAdapter.publicKey) {
+      throw new Error("Wallet Not Connected..")
+    }
+
+    // Validate all required parameters
+    if (!sellerPubkeyString) {
+      throw new Error("Seller public key is required");
+    }
+    if (!product_name) {
+      throw new Error("Product name is required");
+    }
+    if (!quantity || quantity <= 0) {
+      throw new Error("Valid quantity is required");
+    }
+    if (!price || price <= 0) {
+      throw new Error("Valid price is required");
+    }
+    if (!product_imgurl) {
+      throw new Error("Product image URL is required");
+    }
+
+    console.log("AddToCart parameters:", {
+      sellerPubkeyString,
+      product_name,
+      quantity,
+      price,
+      product_imgurl
+    });
+
+    const provider = createProvider(walletAdapter);
+    anchor.setProvider(provider);
+    const ecomProgram = new anchor.Program(IDL, provider);
+    
+    // Validate seller public key before creating PublicKey
+    if (typeof sellerPubkeyString !== 'string' || sellerPubkeyString.length === 0) {
+      throw new Error(`Invalid seller public key: ${sellerPubkeyString}`);
+    }
+
+    let seller_pubkey;
+    try {
+      seller_pubkey = new PublicKey(sellerPubkeyString);
+    } catch (e) {
+      throw new Error(`Invalid seller public key: ${sellerPubkeyString}`);
+    }
+
+    const [productPda] = PublicKey.findProgramAddressSync(
+      [Buffer.from("product"), seller_pubkey.toBuffer(), Buffer.from(product_name)],
+      ECOM_PROGRAM_ID
+    );
+    
+    const [cartPda] = PublicKey.findProgramAddressSync(
+      [Buffer.from("cart"), 
+        walletAdapter.publicKey.toBuffer(), 
+        Buffer.from(product_name)
+      ],
+      ECOM_PROGRAM_ID
+    );
+    
+    const [cartListPda] = PublicKey.findProgramAddressSync(
+      [Buffer.from("cart_list"), walletAdapter.publicKey.toBuffer()],
+      ECOM_PROGRAM_ID    
+    ); 
+
+    const tx = await ecomProgram.methods.addToCart({
+      product_name,
+      quantity,
+      seller_pubkey,
+      product_imgurl,
+      price
+    }).accounts({
+      consumer: walletAdapter.publicKey,
+      cart: cartPda,
+      products: productPda,
+      cart_list: cartListPda,
+      system_program: SystemProgram.programId,
+    }).rpc({
+      skipPreflight:false,
+      preflightCommitment:"confirmed",
+      commitment:"confirmed"
+    });
+
+    const cart = await ecomProgram.account.cart.fetch(cartPda);
+    console.log("Cart Details: ", cart);
+    
+    const cartList = await ecomProgram.account.cartList.fetch(cartListPda);
+    console.log("CartList Details: ", cartList);
+    
+    return{
+      success:true,
+      transaction:tx,
+      cartPda: cartPda.toString(),
+      cartListPda: cartListPda.toString()
+    };
+  } catch (err) {
+      console.error("Error Adding Product To Cart..",err.message);
+      console.error("Stack: ",err.stack);
+      return {
+        success:false,
+        error:err.message
+      };
+    }
+}
