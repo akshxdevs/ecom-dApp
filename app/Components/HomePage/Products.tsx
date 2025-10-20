@@ -2,6 +2,7 @@ import { fetchAllProducts } from "@/sdk/program";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { useEffect, useState } from "react"
 import { motion } from "framer-motion";
+import { useRouter } from "next/navigation";
 
 interface Product {
     pubkey: string;
@@ -22,8 +23,9 @@ export const Products = () => {
     const [products,setProducts] = useState<Product[]>([]);
     const [error,setError] = useState<string | null>(null);
     const [loading,setLoading] = useState<boolean>(false);
+    const router = useRouter();
     const {publicKey, signAllTransactions, signTransaction} = useWallet();
-    const loadAllProdcuts = async() => {
+    const loadAllProducts = async() => {
         if (!publicKey) {
           setError("Please connect your wallet first");
           return;
@@ -70,8 +72,21 @@ export const Products = () => {
       };
 
       useEffect(()=>{
-        loadAllProdcuts();
+        loadAllProducts();
       },[publicKey])
+
+      function bytesToUuid(bytes: number[]): string {
+        if (bytes.length !== 16) throw new Error("Invalid UUID length");
+    
+        const hex = bytes.map((b) => b.toString(16).padStart(2, "0")).join("");
+        return [
+          hex.slice(0, 8),
+          hex.slice(8, 12),
+          hex.slice(12, 16),
+          hex.slice(16, 20),
+          hex.slice(20),
+        ].join("-");
+      }
       
     return <div>
             <div>
@@ -83,6 +98,7 @@ export const Products = () => {
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ duration: 0.5, delay: index * 0.1 }}
+                      onClick={()=>router.push(`/product/${product.pubkey}`)}
                     >
                       <div className="h-48 bg-gradient-to-br from-purple-100 to-blue-100 flex items-center justify-center">
                         {product.productImgurl ? (
