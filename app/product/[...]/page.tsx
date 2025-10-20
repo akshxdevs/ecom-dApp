@@ -1,5 +1,6 @@
 "use client";
-import { fetchProduct } from "@/sdk/program";
+import { Appbar } from "@/app/Components/Appbar";
+import { AddToCart, fetchProduct } from "@/sdk/program";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -35,7 +36,6 @@ export default function(){
           setError("Please connect your wallet first");
           return;
         }
-    
         setLoading(true);
         setError(null);
         
@@ -66,11 +66,51 @@ export default function(){
         }
       }
       useEffect(()=>{
-        loadProduct()
-      },[productPubkey])
+        if (publicKey && productPubkey) loadProduct();
+      },[publicKey,productPubkey])
+      console.log(product?.sellerPubkey.toString());
+      
+      const handleAddToCart = async() => {
+        if (!publicKey) return;
+
+        try {
+            const walletAdapter = {
+                publicKey,
+                signTransaction,
+                signAllTransactions,
+            }
+            
+            const cart = await AddToCart(
+                walletAdapter,
+                product?.sellerPubkey.toString(),
+                product?.productName, 
+                1, 
+                product?.price, 
+                product?.productImgurl
+            )
+            if (cart.success && cart.cartListPda) {
+                console.log("Cart Details: ",cart);
+                console.log("Cart List PDA: ",cart.cartListPda);
+                
+              }else{
+                console.log("No products found or error occurred:", cart.error);
+                setProduct(null);        
+              }
+            } catch (err: any) {
+              console.error("Error loading products:", err);
+              setError(err.message || "Failed to load products");
+              console.log(error);
+            } finally {
+              setLoading(false);
+            }
+        }
     return(
         <div>
+            <Appbar/>
+            <img src={product?.productImgurl} alt="" />
             <h1>{product?.productName}</h1>
+            <p>{product?.productShortDescription}</p>
+            <button onClick={handleAddToCart} className="px-4 py-2 border">AddToCart</button>
         </div>
     );
 }
