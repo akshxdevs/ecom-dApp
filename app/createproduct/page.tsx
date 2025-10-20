@@ -130,38 +130,7 @@ function CreateProductPage(){
     }
   };
 
-  const loadAllProdcuts = async() => {
-    if (!publicKey) {
-      setError("Please connect your wallet first");
-      return;
-    }
 
-    setLoading(true);
-    setError(null);
-    
-    const walletAdapter = {
-      publicKey,
-      signTransaction,
-      signAllTransactions,
-    }
-    try {
-      const result = await fetchAllProducts(walletAdapter);
-      console.log("Fetch result:", result);
-      
-      if (result.success && result.products) {
-        setProducts(result.products);
-      }else{
-        console.log("No products found or error occurred:", result.error);
-        setProducts([]);        
-      }
-    } catch (err: any) {
-      console.error("Error loading products:", err);
-      setError(err.message || "Failed to load products");
-      setProducts([]);
-    } finally {
-      setLoading(false);
-    }
-  }
   const handleCreateProduct = async () => {
     if (creating) {
       return; 
