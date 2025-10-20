@@ -67,7 +67,6 @@ impl <'info> AddToCart <'info> {
         &mut self,
         cart_list_bump:u8,
     )->Result<()>{
-        // Only initialize if the cart_list is empty (new account)
         let cart = &mut self.cart;
         let current_cart_total: u64 = cart.amount.iter().copied().sum();
         let quantity = cart.quantity;
@@ -78,7 +77,6 @@ impl <'info> AddToCart <'info> {
                 cart_list_bump 
             });
         } else {
-            // increment grand total by this cart's total for this call
             let new_total = self.cart_list.total_amount.saturating_add(current_cart_total);
             self.cart_list.total_amount = new_total * quantity;
         }
