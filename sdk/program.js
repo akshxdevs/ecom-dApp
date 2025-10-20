@@ -140,8 +140,9 @@ export async function initCreateProduct(
 
     const categoryVariant = getCategoryVariant(category);
     const divisionVariant = getDivisionVariant(division);
-
-
+    console.log("Category: ",category);
+    console.log("Category Varient: ",categoryVariant);
+    
     await connection.getLatestBlockhash();
     
     const tx = await ecomProgram.methods.createProduct(
@@ -171,9 +172,7 @@ export async function initCreateProduct(
 
     const productList = await ecomProgram.account.productsList.fetch(productListPda);
     console.log("Product Details: ",productList);
-    console.log("Category: ",category);
-    console.log("Category Varient: ",categoryVariant);
-    
+
     return {
       success: true,
       transaction: tx,
