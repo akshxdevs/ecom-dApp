@@ -189,6 +189,7 @@ export async function initCreateProduct(
 }
 
 export async function fetchProduct(productPdaString, walletAdapter) {
+  console.log(productPdaString);
   try {
     const provider = createProvider(walletAdapter);
     anchor.setProvider(provider);
@@ -305,12 +306,10 @@ export function formatProductData(productData) {
   const normalizePublicKey = (input) => {
     try {
       if (!input) return "";
-      // If already a string, trim and try to parse
       if (typeof input === "string") {
         const trimmed = input.trim();
         return new PublicKey(trimmed).toBase58();
       }
-      // PublicKey, Buffer, Uint8Array, number[] are accepted by constructor
       return new PublicKey(input).toBase58();
     } catch (e) {
       console.warn("Failed to normalize public key:", input);
@@ -347,7 +346,6 @@ export async function AddToCart(
       throw new Error("Wallet Not Connected..")
     }
 
-    // Validate all required parameters
     if (!sellerPubkeyString) {
       throw new Error("Seller public key is required");
     }
@@ -406,13 +404,13 @@ export async function AddToCart(
       ECOM_PROGRAM_ID    
     ); 
 
-    const tx = await ecomProgram.methods.addToCart({
+    const tx = await ecomProgram.methods.addToCart(
       product_name,
       quantity,
       seller_pubkey,
       product_imgurl,
       price
-    }).accounts({
+    ).accounts({
       consumer: walletAdapter.publicKey,
       cart: cartPda,
       products: productPda,
@@ -444,4 +442,54 @@ export async function AddToCart(
         error:err.message
       };
     }
+}
+
+export const fetchCart = async(cartPdaString, walletAdapter) => {
+  try {
+    const provider = createProvider(walletAdapter);
+    anchor.setProvider(provider);
+    const ecomProgram = new anchor.Program(IDL, provider);
+    
+    const cartPda = new PublicKey(cartPdaString);
+    const cartData = await ecomProgram.account.cart.fetch(cartPda);
+    
+    return {
+      success: true,
+      data: cartData
+    };
+  } catch (error) {
+    console.error("Error fetching cart:", error.message);
+    return {
+      success: false,
+      error: error.message
+    };
+  }
+}
+
+export const fetchCartList = async(walletAdapter) => {
+    try {
+      const provider = createProvider(walletAdapter);
+      anchor.setProvider(provider);
+      
+      const ecomProgram = new anchor.Program(IDL, provider);
+      const [cartListPda] = PublicKey.findProgramAddressSync(
+        [Buffer.from("cart_list"), walletAdapter.publicKey.toBuffer()],
+        ECOM_PROGRAM_ID    
+      ); 
+
+      const cartList = await ecomProgram.account.cartList.fetch(cartListPda);
+      console.log("CartList Details: ", cartList); 
+
+      return {
+        success: true,
+        cart: cartList
+      };
+  } catch (error) {
+    console.error("Error fetching all products:", error.message);
+    return {
+      success: false,
+      error: error.message,
+      cart: []
+    };
+  }
 }
