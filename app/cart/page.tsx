@@ -1,8 +1,8 @@
 "use client";
-import { fetchCart, fetchCartList, fetchProduct } from "@/sdk/program";
+import { fetchCart, fetchCartList } from "@/sdk/program";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { createContext, ReactNode, useContext, useEffect, useState } from "react";
 import { PublicKey } from "@solana/web3.js";
 import { motion } from "framer-motion";
 import { Appbar } from "../Components/Appbar";
@@ -17,7 +17,10 @@ interface Cart {
   quantity: number;
 }
 
-export default function () {
+
+
+
+export default function Cart() {
   const [error, setError] = useState<string | null>(null);
   const [cart, setCart] = useState<Cart[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
@@ -94,7 +97,7 @@ export default function () {
       loadCartList();
     }
   }, [publicKey]);
-
+  
   
   return (
     <div>
