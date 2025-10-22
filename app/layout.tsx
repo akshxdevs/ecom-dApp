@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "react-hot-toast"
 import WalletProviderWrapper from "./Components/WalletProvider";
+import { CartLengthProvider } from "./Components/HomePage/Products";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -30,17 +31,19 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <WalletProviderWrapper>
-          {children}
-          <Toaster 
-            position="top-right"
-            toastOptions={{
-              duration:4000,
-              style:{
-                background:'#1e293b',
-                color:"#fff"
-              }
-            }}
-          />
+          <CartLengthProvider>
+            {children}
+            <Toaster 
+              position="top-right"
+              toastOptions={{
+                duration:3000,
+                style:{
+                  background:'#1e293b',
+                  color:"#fff"
+                }
+              }}
+            />
+          </CartLengthProvider>
         </WalletProviderWrapper>
       </body>
     </html>
