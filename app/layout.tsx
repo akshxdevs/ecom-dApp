@@ -4,6 +4,7 @@ import "./globals.css";
 import { Toaster } from "react-hot-toast"
 import WalletProviderWrapper from "./Components/WalletProvider";
 import { CartLengthProvider } from "./Components/HomePage/Products";
+import { SellerPubkeyProvider } from "./cart/page";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -32,17 +33,19 @@ export default function RootLayout({
       >
         <WalletProviderWrapper>
           <CartLengthProvider>
-            {children}
-            <Toaster 
-              position="top-right"
-              toastOptions={{
-                duration:3000,
-                style:{
-                  background:'#1e293b',
-                  color:"#fff"
-                }
-              }}
-            />
+            <SellerPubkeyProvider>
+              {children}
+              <Toaster 
+                position="top-right"
+                toastOptions={{
+                  duration:3000,
+                  style:{
+                    background:'#1e293b',
+                    color:"#fff"
+                  }
+                }}
+              />
+            </SellerPubkeyProvider>
           </CartLengthProvider>
         </WalletProviderWrapper>
       </body>
