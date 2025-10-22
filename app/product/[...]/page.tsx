@@ -1,40 +1,43 @@
 "use client";
 import { Appbar } from "@/app/Components/Appbar";
-import { AddToCart, fetchCartList, fetchProduct, fetchCart } from "@/sdk/program";
+import {
+  AddToCart,
+  fetchCartList,
+  fetchProduct,
+  fetchCart,
+} from "@/sdk/program";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
-import {
-  PublicKey,
-} from "@solana/web3.js";
+import { PublicKey } from "@solana/web3.js";
 interface Product {
-    pubkey: string;
-    productId: number[];
-    productName: string;
-    productShortDescription: string;
-    price: number;
-    category: any;
-    division: any;
-    sellerName: string;
-    sellerPubkey: string;
-    productImgurl: string;
-    quantity: number;
-    rating: number;
-    stockStatus: any;
-  }
+  pubkey: string;
+  productId: number[];
+  productName: string;
+  productShortDescription: string;
+  price: number;
+  category: any;
+  division: any;
+  sellerName: string;
+  sellerPubkey: string;
+  productImgurl: string;
+  quantity: number;
+  rating: number;
+  stockStatus: any;
+}
 
-export default function(){
-    const params = useParams();
-    const productPubkey = Array.isArray(params[""]) ? 
-    decodeURIComponent(params[""][0] || "") : "Invalid URL.."
-    
-    const {publicKey, signAllTransactions, signTransaction} = useWallet();
-    const [product,setProduct] = useState<Product | null>(null);
-    const [error,setError] = useState<string | null>(null);
-    const [loading,setLoading] = useState<boolean>(false);
+export default function () {
+  const params = useParams();
+  const productPubkey = Array.isArray(params[""])
+    ? decodeURIComponent(params[""][0] || "")
+    : "Invalid URL..";
 
+  const { publicKey, signAllTransactions, signTransaction } = useWallet();
+  const [product, setProduct] = useState<Product | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState<boolean>(false);
 
-    const loadCartList = async() =>{
+  const loadCartList = async () => {
     const walletAdapter = {
       publicKey,
       signTransaction,
@@ -47,146 +50,152 @@ export default function(){
     }
     setLoading(true);
     setError(null);
- 
+
     try {
       const result = await fetchCartList(walletAdapter);
       // console.log("Fetch result from cart:", result);
       if (result.success && result.cart) {
         // console.log("Cart Fetched Successfully: ",result.cart);
         let cartList = result.cart.cartList;
-        console.log("Product PublicKey: ",cartList);
-              
-      for (let i = 0; i < cartList.length; i++) {
-        const cartKeyObj = cartList[i];
-        if (!cartKeyObj) continue;
+        console.log("Product PublicKey: ", cartList);
 
-        try {
-          // Convert the cart public key
-          const cartKey = new PublicKey(cartKeyObj);
-          const cartPubkeyString = cartKey.toBase58();
+        for (let i = 0; i < cartList.length; i++) {
+          const cartKeyObj = cartList[i];
+          if (!cartKeyObj) continue;
 
-          console.log("Cart Key (Pubkey):", cartPubkeyString);
+          try {
+            // Convert the cart public key
+            const cartKey = new PublicKey(cartKeyObj);
+            const cartPubkeyString = cartKey.toBase58();
 
-          // Fetch the cart account first
-          const cartDetails = await fetchCart(cartPubkeyString, walletAdapter);
-          console.log("Cart details:", cartDetails.data);
+            console.log("Cart Key (Pubkey):", cartPubkeyString);
 
-          if (cartDetails.success && cartDetails.data) {
-            // Now derive the product PDA using seller_pubkey and product_name from cart
-            const sellerPubkey = cartDetails.data.sellerPubkey;
-            const productName = cartDetails.data.productName;
-            
-            // Derive the product PDA
-            const productPda = PublicKey.findProgramAddressSync(
-              [Buffer.from("product"), sellerPubkey.toBuffer(), Buffer.from(productName)],
-              new PublicKey("FYo4gi69vTJZJMnNxj2mZz2Q9CbUu12rQDVtHNUFQ2o7")
-            )[0];
+            // Fetch the cart account first
+            const cartDetails = await fetchCart(
+              cartPubkeyString,
+              walletAdapter
+            );
+            console.log("Cart details:", cartDetails.data);
 
-            console.log("Derived Product PDA:", productPda.toString());
+            if (cartDetails.success && cartDetails.data) {
+              // Now derive the product PDA using seller_pubkey and product_name from cart
+              const sellerPubkey = cartDetails.data.sellerPubkey;
+              const productName = cartDetails.data.productName;
 
-            // Now fetch the actual product
-            const productDetails = await fetchProduct(productPda.toString(), walletAdapter);
-            console.log("Product details from cart:", productDetails.data);
-          }
-        } catch (err) {
-          console.error("Error converting or fetching cart/product:", err);
-        }
-      }
-        console.log("Total Amount: ",Number(result.cart.totalAmount));
-        
-      }else{
-          console.log("No products found or error occurred:", result.error);
-      }
-      } catch (err: any) {
-        console.error("Error loading products:", err);
-        setError(err.message || "Failed to load products");
-        console.log(error);
-      }
-    }  
+              // Derive the product PDA
+              const productPda = PublicKey.findProgramAddressSync(
+                [
+                  Buffer.from("product"),
+                  sellerPubkey.toBuffer(),
+                  Buffer.from(productName),
+                ],
+                new PublicKey("FYo4gi69vTJZJMnNxj2mZz2Q9CbUu12rQDVtHNUFQ2o7")
+              )[0];
 
+              console.log("Derived Product PDA:", productPda.toString());
 
-    const loadProduct = async() => {
-        if (!publicKey) {
-          setError("Please connect your wallet first");
-          return;
-        }
-        setLoading(true);
-        setError(null);
-        
-        const walletAdapter = {
-          publicKey,
-          signTransaction,
-          signAllTransactions,
-        }
-        try {
-          const result = await fetchProduct(productPubkey,walletAdapter);
-          // console.log("Fetch result:", result);
-          
-          if (result.success && result.data) {
-            setProduct(result.data);
-            // console.log(result);
-            
-          }else{
-            console.log("No products found or error occurred:", result.error);
-            setProduct(null);        
-          }
-        } catch (err: any) {
-          console.error("Error loading products:", err);
-          setError(err.message || "Failed to load products");
-          console.log(error);
-          setProduct(null);
-        } finally {
-          setLoading(false);
-        }
-      }
-
-  useEffect(()=>{
-        if (publicKey && productPubkey) {
-          loadProduct()
-          loadCartList()
-        };
-      },[publicKey,productPubkey]);
-
-
-  const handleAddToCart = async() => {
-        if (!publicKey) return;
-
-        try {
-            const walletAdapter = {
-                publicKey,
-                signTransaction,
-                signAllTransactions,
+              // Now fetch the actual product
+              const productDetails = await fetchProduct(
+                productPda.toString(),
+                walletAdapter
+              );
+              console.log("Product details from cart:", productDetails.data);
             }
-            
-            const cart = await AddToCart(
-                walletAdapter,
-                product?.sellerPubkey.toString(),
-                product?.productName, 
-                1, 
-                product?.price, 
-                product?.productImgurl
-            )
-            if (cart.success && cart.cartListPda) {
-              console.log("Added To Cart Successfully..");
-              }else{
-                console.log("No products found or error occurred:", cart.error);
-                setProduct(null);        
-              }
-            } catch (err: any) {
-              console.error("Error loading products:", err);
-              setError(err.message || "Failed to load products");
-              console.log(error);
-            } finally {
-              setLoading(false);
-            }
+          } catch (err) {
+            console.error("Error converting or fetching cart/product:", err);
+          }
         }
-    return(
-        <div>
-            <Appbar/>
-            <img src={product?.productImgurl} alt="" />
-            <h1>{product?.productName}</h1>
-            <p>{product?.productShortDescription}</p>
-            <button onClick={handleAddToCart} className="px-4 py-2 border">AddToCart</button>
-        </div>
-    );
+        console.log("Total Amount: ", Number(result.cart.totalAmount));
+      } else {
+        console.log("No products found or error occurred:", result.error);
+      }
+    } catch (err: any) {
+      console.error("Error loading products:", err);
+      setError(err.message || "Failed to load products");
+      console.log(error);
+    }
+  };
+
+  const loadProduct = async () => {
+    if (!publicKey) {
+      setError("Please connect your wallet first");
+      return;
+    }
+    setLoading(true);
+    setError(null);
+
+    const walletAdapter = {
+      publicKey,
+      signTransaction,
+      signAllTransactions,
+    };
+    try {
+      const result = await fetchProduct(productPubkey, walletAdapter);
+
+      if (result.success && result.data) {
+        setProduct(result.data);
+      } else {
+        console.log("No products found or error occurred:", result.error);
+        setProduct(null);
+      }
+    } catch (err: any) {
+      console.error("Error loading products:", err);
+      setError(err.message || "Failed to load products");
+      console.log(error);
+      setProduct(null);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (publicKey && productPubkey) {
+      loadProduct();
+      loadCartList();
+    }
+  }, [publicKey, productPubkey]);
+
+  const handleAddToCart = async () => {
+    if (!publicKey) return;
+
+    try {
+      const walletAdapter = {
+        publicKey,
+        signTransaction,
+        signAllTransactions,
+      };
+
+      const cart = await AddToCart(
+        walletAdapter,
+        product?.sellerPubkey.toString(),
+        product?.productName,
+        1,
+        product?.price,
+        product?.productImgurl
+      );
+      if (cart.success && cart.cartListPda) {
+        console.log("Added To Cart Successfully..");
+      } else {
+        console.log("No products found or error occurred:", cart.error);
+        setProduct(null);
+      }
+    } catch (err: any) {
+      console.error("Error loading products:", err);
+      setError(err.message || "Failed to load products");
+      console.log(error);
+    } finally {
+      setLoading(false);
+    }
+  };
+  return (
+    <div>
+      <Appbar />
+      <img src={product?.productImgurl} alt="" />
+      <h1>{product?.productName}</h1>
+      <p>{product?.productShortDescription}</p>
+      <button onClick={handleAddToCart} className="px-4 py-2 border">
+        AddToCart
+      </button>
+    </div>
+  );
 }
