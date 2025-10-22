@@ -17,7 +17,47 @@ interface Cart {
   quantity: number;
 }
 
+interface SellerPublicKey{
+  sellerPubkey:PublicKey;
+  setSellerPubkey:(value:any)=>void;
+}
 
+export const SellerPubkeyContext = createContext<
+  SellerPublicKey | undefined
+>(undefined);
+
+export const SellerPubkeyProvider = ({
+  children,
+}: {
+  children: React.ReactNode;
+}) => {
+  const [sellerPubkey, setSellerPubkey] = useState<any>(()=>{
+    if (typeof window !== "undefined"){
+      const stored = localStorage.getItem("sellerPubkey");
+      return stored ? JSON.parse(stored) : [];
+    }return [];
+  });
+
+  useEffect(()=>{
+    if (sellerPubkey.length > 0) {
+      localStorage.setItem("sellerPubkey",JSON.stringify(sellerPubkey));
+    }
+  },[sellerPubkey])
+
+  return (
+    <SellerPubkeyContext.Provider value={{ sellerPubkey, setSellerPubkey }}>
+      {children}
+    </SellerPubkeyContext.Provider>
+  );
+};
+
+export const useSellerPubkey = () => {
+  const context = useContext(SellerPubkeyContext);
+  if (context === undefined) {
+    throw new Error("useCartLength must be used within a sellerPubkeyProvider");
+  }
+  return context;
+};
 
 
 export default function Cart() {
@@ -25,6 +65,7 @@ export default function Cart() {
   const [cart, setCart] = useState<Cart[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [totalAmount, setTotalAmount] = useState<number>(0);
+  const {sellerPubkey,setSellerPubkey} = useSellerPubkey();
   const router = useRouter();
   const { publicKey, signAllTransactions, signTransaction } = useWallet();
 
@@ -92,6 +133,9 @@ export default function Cart() {
       setLoading(false);
     }
   };
+
+
+
   useEffect(() => {
     if (publicKey) {
       loadCartList();
@@ -99,6 +143,19 @@ export default function Cart() {
   }, [publicKey]);
   
   
+  useEffect(()=>{
+    if (cart && cart.length > 0) {
+      const sellerPubkeys = cart.map((pubkey)=>pubkey.sellerPubkey);
+      const uniqueSellerPubkeys = [...new Set(sellerPubkeys)];
+      setSellerPubkey(uniqueSellerPubkeys);
+      console.log("Seller publicKey: ",sellerPubkey);  
+    }
+  },[cart]);
+
+  useEffect(() => {
+    console.log("Updated Seller PubKeys:", sellerPubkey);
+  }, [sellerPubkey]);
+
   return (
     <div>
       <Appbar/>
