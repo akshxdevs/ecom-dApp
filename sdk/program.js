@@ -906,4 +906,53 @@ export const initWithdrawEscrow = async(walletAdapter, sellerPubkey, totalAmount
     return { success: false, error: error.message };
   }
 }
+export const fetchAccountBalances = async (walletAdapter, buyerPubkey, sellerPubkey, escrowPda) => {
+  const provider = createProvider(walletAdapter);
+  
+  try {
+    console.log("Fetching account balances...");
+    
+    const buyerBalance = await provider.connection.getBalance(new PublicKey(buyerPubkey));
+    const sellerBalance = await provider.connection.getBalance(new PublicKey(sellerPubkey));
+    const escrowBalance = await provider.connection.getBalance(new PublicKey(escrowPda));
+    
+    const buyerSOL = buyerBalance / LAMPORTS_PER_SOL;
+    const sellerSOL = sellerBalance / LAMPORTS_PER_SOL;
+    const escrowSOL = escrowBalance / LAMPORTS_PER_SOL;
+    
+    console.log("Account Balances:");
+    console.log(`Buyer (${buyerPubkey}): ${buyerSOL.toFixed(4)} SOL`);
+    console.log(`Seller (${sellerPubkey}): ${sellerSOL.toFixed(4)} SOL`);
+    console.log(`Escrow (${escrowPda.toString()}): ${escrowSOL.toFixed(4)} SOL`);
+    
+    return {
+      success: true,
+      balances: {
+        buyer: {
+          address: buyerPubkey,
+          sol: buyerSOL,
+          lamports: buyerBalance
+        },
+        seller: {
+          address: sellerPubkey,
+          sol: sellerSOL,
+          lamports: sellerBalance
+        },
+        escrow: {
+          address: escrowPda.toString(),
+          sol: escrowSOL,
+          lamports: escrowBalance
+        }
+      }
+    };
+  } catch (error) {
+    console.error("Failed to fetch balances:", error);
+    return {
+      success: false,
+      error: error.message,
+      balances: null
+    };
+  }
+};
+
 
