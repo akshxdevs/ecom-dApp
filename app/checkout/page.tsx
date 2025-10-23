@@ -1,6 +1,7 @@
 "use client";
-import { initCreateEscrow, initCreatePayment } from "@/sdk/program";
+import { fetchConfirmPayment, initCreateEscrow, initCreatePayment, initDepositeEscrow, initWithdrawEscrow, fetchAccountBalances } from "@/sdk/program";
 import { useWallet } from "@solana/wallet-adapter-react";
+import { LAMPORTS_PER_SOL } from "@solana/web3.js";
 import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
 import { useSellerPubkey } from "../cart/page";
@@ -9,6 +10,8 @@ import { Appbar } from "../Components/Appbar";
 export default function(){
     const [totalAmount,setTotalAmount] = useState<number>(0);
     const [isClient, setIsClient] = useState(false);
+    const [balances, setBalances] = useState<any>(null);
+    const [escrowPda, setEscrowPda] = useState<string | null>(null);
     const wallet = useWallet();
     const {publicKey,signAllTransactions,signTransaction} = wallet;
     const {sellerPubkey} = useSellerPubkey();
@@ -17,45 +20,57 @@ export default function(){
         setIsClient(true);
         if(localStorage.getItem("totalAmount")){
             setTotalAmount(Number(localStorage.getItem("totalAmount")));
+            console.log("total Amount in SOL:",
+                ((Number(localStorage.getItem("totalAmount"))/LAMPORTS_PER_SOL)).toFixed(5) + " SOL");
         }else{
             console.log("No total amount found");
             setTotalAmount(0);
         } 
     },[]);
 
+    const fetchBalances = async () => {
+        if (!publicKey || !sellerPubkey || !escrowPda) {
+            console.log("Missing required data for balance fetch");
+            return;
+        }
+
+        try {
+            const balanceResult = await fetchAccountBalances(
+                wallet, 
+                publicKey.toString(), 
+                sellerPubkey, 
+                escrowPda
+            );
+            
+            if (balanceResult.success) {
+                setBalances(balanceResult.balances);
+                console.log("Balances updated:", balanceResult.balances);
+            } else {
+                console.error("Failed to fetch balances:", balanceResult.error);
+            }
+        } catch (error) {
+            console.error("Error fetching balances:", error);
+        }
+    };
+
     const handlePayment = async() => {
-        // Check if wallet is connected
         if (!publicKey) {
             toast.error("Please connect your wallet first");
             return;
         }
-
-        // Check if seller pubkey is available
         if (!sellerPubkey) {
             toast.error("Seller information not available");
             return;
         }
-
-        // Check if total amount is valid
         if (!totalAmount || totalAmount <= 0) {
             toast.error("Invalid total amount");
             return;
         }
-
-        // Use the actual wallet object from useWallet()
         const walletAdapter = wallet;
-        
-        console.log("Checkout - wallet:", wallet);
-        console.log("Checkout - wallet keys:", wallet ? Object.keys(wallet) : 'wallet is null/undefined');
-        console.log("Checkout - walletAdapter:", walletAdapter);
-        console.log("Checkout - walletAdapter.publicKey:", walletAdapter?.publicKey);
-        
-        // Ensure we have a valid wallet adapter
         if (!walletAdapter || !walletAdapter.publicKey) {
             toast.error("Wallet not properly connected");
             return;
         }
-        
         try {
             const result = await initCreatePayment(walletAdapter,totalAmount);
             console.log("Payment Details: ",result);
@@ -70,7 +85,41 @@ export default function(){
                 console.log("Escrow Details: ",escrowInit);
                 
                 if (escrowInit.success) {
-                    toast.success("Payment and escrow created successfully!"); 
+                    toast.success("Escrow created successfully!");
+                    
+                    if (escrowInit.data) {
+                        setEscrowPda(escrowInit.data.toString());
+                        console.log("Escrow PDA stored:", escrowInit.data.toString());
+                        setTimeout(() => {
+                            fetchBalances();
+                        }, 1000);
+                    }
+                    const depositeEscrow = await initDepositeEscrow(walletAdapter, sellerPubkey.toString(), totalAmount, escrowInit.mint);
+                    console.log("Escrow Details: ",depositeEscrow);
+                    
+                    if (depositeEscrow.success) {
+                        toast.success("Deposit escrow successful!"); 
+                    } else {
+                        toast.error(`Deposit escrow failed: ${depositeEscrow.error}`);
+                    }
+                    
+                    const withdrawEscrow = await initWithdrawEscrow(walletAdapter, sellerPubkey.toString(), totalAmount, escrowInit.mint);
+                    console.log("Escrow Details: ",withdrawEscrow);
+                    
+                    if (withdrawEscrow.success) {
+                        toast.success("Withdraw escrow successful!"); 
+                    } else {
+                        toast.error(`Withdraw escrow failed: ${withdrawEscrow.error}`);
+                    }
+                    
+                    const fetchPaymentConfirmation = await fetchConfirmPayment(walletAdapter);
+                    console.log("Payment Confirmation: ",fetchPaymentConfirmation);
+                    
+                    if (fetchPaymentConfirmation.success) {
+                        toast.success("Payment confirmed successfully!"); 
+                    } else {
+                        toast.error(`Payment confirmation failed: ${fetchPaymentConfirmation.error}`);
+                    }
                 } else {
                     toast.error(`Escrow creation failed: ${escrowInit.error}`);
                 }
@@ -96,6 +145,41 @@ export default function(){
                         </div>
                         <div className="text-sm text-gray-600">
                             Seller: {sellerPubkey ? `${sellerPubkey.toString().slice(0, 8)}...` : 'Not Available'}
+                        </div>
+                        
+                        {/* Balance Display Section */}
+                        <div className="mt-4 p-4 border rounded-lg bg-gray-50 w-full max-w-md">
+                            <h3 className="text-lg font-semibold mb-3 text-center">Account Balances</h3>
+                            
+                            {balances ? (
+                                <div className="space-y-2">
+                                    <div className="flex justify-between items-center p-2 bg-white rounded border">
+                                        <span className="font-medium">Buyer:</span>
+                                        <span className="text-green-600 font-bold">{balances.buyer.sol.toFixed(4)} SOL</span>
+                                    </div>
+                                    <div className="flex justify-between items-center p-2 bg-white rounded border">
+                                        <span className="font-medium">Seller:</span>
+                                        <span className="text-blue-600 font-bold">{balances.seller.sol.toFixed(4)} SOL</span>
+                                    </div>
+                                    <div className="flex justify-between items-center p-2 bg-white rounded border">
+                                        <span className="font-medium">Escrow:</span>
+                                        <span className="text-purple-600 font-bold">{balances.escrow.sol.toFixed(4)} SOL</span>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="text-center text-gray-500">
+                                    {escrowPda ? 'Loading balances...' : 'Complete payment to see balances'}
+                                </div>
+                            )}
+                            
+                            {escrowPda && (
+                                <button 
+                                    onClick={fetchBalances}
+                                    className="mt-3 w-full py-2 px-4 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
+                                >
+                                    Refresh Balances
+                                </button>
+                            )}
                         </div>
                     </>
                 )}
