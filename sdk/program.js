@@ -955,4 +955,35 @@ export const fetchAccountBalances = async (walletAdapter, buyerPubkey, sellerPub
   }
 };
 
+export const fetchConfirmPayment = async(walletAdapter) => {
+  const provider = createProvider(walletAdapter);
+  anchor.setProvider(provider);
 
+  try {
+    const ecomProgram = new anchor.Program(IDL,provider); 
+    const owner = walletAdapter.publicKey;
+    const [paymentPda] = PublicKey.findProgramAddressSync(
+      [Buffer.from("payment"), owner.toBuffer()],
+      ECOM_PROGRAM_ID
+    );
+      
+    const payment = await ecomProgram.account.payment.fetch(paymentPda);
+    if (payment.paymentStatus && payment.paymentStatus.success) {
+      payment.txSignature = payment_tx;
+    }else{
+      console.log("Payment Not Intialized!");
+    }
+    console.log("Payment Details: ",payment);
+    console.log("Payment Amount: ",Number(payment.paymentAmount));
+    return {
+      success: true,
+      payment:payment
+    }
+  } catch (error) {
+    console.error("Payment creation failed:", error.message);
+    return{
+      success:false,
+      error:error.message
+    }
+  }
+}
