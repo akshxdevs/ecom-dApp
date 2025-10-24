@@ -1,28 +1,30 @@
 import * as anchor from "@coral-xyz/anchor";
 import BN from "bn.js";
-import { PublicKey, SystemProgram, Connection, LAMPORTS_PER_SOL } from "@solana/web3.js";
+import { PublicKey, SystemProgram, Connection, LAMPORTS_PER_SOL, Transaction } from "@solana/web3.js";
 import IDL from "./ecom_dapp.json";
 import { 
-  createMint, 
-  mintTo, 
   TOKEN_PROGRAM_ID,           
-  getOrCreateAssociatedTokenAccount
+  getAssociatedTokenAddressSync,
+  createAssociatedTokenAccountInstruction,
+  ASSOCIATED_TOKEN_PROGRAM_ID,
+  createMint,
+  getOrCreateAssociatedTokenAccount,
+  mintTo,
 } from "@solana/spl-token";
 
-// Program ID - this needs to match your deployed program
-// For localnet: "FYo4gi69vTJZJMnNxj2mZz2Q9CbUu12rQDVtHNUFQ2o7"
-// For devnet: You need to deploy first and get the program ID
 const ECOM_PROGRAM_ID = new PublicKey(
   "FYo4gi69vTJZJMnNxj2mZz2Q9CbUu12rQDVtHNUFQ2o7"
 );
 
+import {
+
+} from "@solana/spl-token";
+
 const local = "http://127.0.0.1:8899";
 const devnet = "https://api.devnet.solana.com";
-// Use devnet since local validator is not running
 const connection = new Connection(devnet);
 
 function createProvider(wallet) {
-  // Use the wallet's connection if available, otherwise fall back to devnet
   const walletConnection = wallet.connection || connection;
   
   console.log("Creating provider with connection:", walletConnection.rpcEndpoint);
@@ -593,57 +595,46 @@ export const initCreatePayment = async (walletAdapter, totalAmount) => {
 };
 
 export const initCreateEscrow = async (walletAdapter, sellerPubkey, totalAmount) => {
-  // console.log("initCreateEscrow called with:", {
-  //   walletAdapter,
-  //   walletAdapterType: typeof walletAdapter,
-  //   hasPublicKey: !!walletAdapter?.publicKey,
-  //   sellerPubkey,
-  //   totalAmount
-  // });
+  console.log("initCreateEscrow called with:", {
+    walletAdapter,
+    walletAdapterType: typeof walletAdapter,
+    hasPublicKey: !!walletAdapter?.publicKey,
+    sellerPubkey,
+    totalAmount
+  });
+  console.log("WalletAdapter Payer: ",walletAdapter.payer);
   
-
+  console.log("Wallet Adapter Details: ",walletAdapter);
+  
   const provider = createProvider(walletAdapter);
   anchor.setProvider(provider);
 
   const ecomProgram = new anchor.Program(IDL, provider);
-  const owner = walletAdapter.publicKey; 
-  const buyer = walletAdapter.publicKey;
+  const owner = walletAdapter; 
+  const buyer = walletAdapter;
   const seller = new PublicKey(sellerPubkey); 
   
   console.log("Buyer Pubkey: ",walletAdapter.publicKey.toString());
   console.log("Seller Pubkey: ",sellerPubkey);
   console.log("Total Amount: ",totalAmount);
-  
+  console.log("Calling initCreateEscrow, walletAdapter:", walletAdapter);
+
+  if (!walletAdapter || !walletAdapter.publicKey) {
+    console.error("Wallet adapter not ready. Aborting escrow creation.");
+    return;
+  }
+
   try {
-    const wallet = {
-      publicKey: walletAdapter.publicKey,
-      signTransaction: walletAdapter.signTransaction,
-      signAllTransactions: walletAdapter.signAllTransactions,
-    };
-    
-    // console.log("About to create mint with:", {
-    //   connection: provider.connection,
-    //   wallet,
-    //   owner,
-    //   ownerType: typeof owner,
-    //   ownerString: owner?.toString(),
-    //   walletKeys: Object.keys(wallet || {}),
-    //   walletPublicKey: wallet?.publicKey?.toString()
-    // });
-    
-    const mint = new PublicKey("So11111111111111111111111111111111111111112"); 
-
     let escrowPda, paymentPda;
-
     try {
       [escrowPda] = PublicKey.findProgramAddressSync(
-        [Buffer.from("escrow"), owner.toBuffer()],
+        [Buffer.from("escrow"), owner.publicKey.toBuffer()],
         ECOM_PROGRAM_ID
       );
       console.log("Escrow PDA:", escrowPda.toString());
 
       [paymentPda] = PublicKey.findProgramAddressSync(
-        [Buffer.from("payment"), owner.toBuffer()],
+        [Buffer.from("payment"), owner.publicKey.toBuffer()],
         ECOM_PROGRAM_ID
       );
       console.log("Payment PDA:", paymentPda.toString());
@@ -656,11 +647,59 @@ export const initCreateEscrow = async (walletAdapter, sellerPubkey, totalAmount)
 
     let escrowAta, buyerAta, sellerAta, userAta;
     
-    escrowAta = new PublicKey("So11111111111111111111111111111111111111112"); 
-    buyerAta = new PublicKey("EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"); 
-    sellerAta = new PublicKey("Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB");
-    userAta = new PublicKey("DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263");
+    const mint = await createMint(
+      provider.connection,
+      walletAdapter.payer,
+      owner.publicKey,
+      null,
+      6
+    );
+    escrowAta = (
+      await getOrCreateAssociatedTokenAccount(
+        provider.connection,
+        walletAdapter.payer,
+        mint,
+        escrowPda,
+        true
+      )
+    ).address;
+
+    buyerAta = (
+      await getOrCreateAssociatedTokenAccount(
+        provider.connection,
+        walletAdapter.payer,
+        mint,
+        buyer.publicKey
+      )
+    ).address;
+
+    sellerAta = (
+      await getOrCreateAssociatedTokenAccount(
+        provider.connection,
+        walletAdapter.payer,
+        mint,
+        seller.publicKey
+      )
+    ).address;
+
+    userAta = (
+      await getOrCreateAssociatedTokenAccount(
+        provider.connection,
+            walletAdapter.payer,
+            mint,
+            owner.publicKey
+          )
+        ).address;
     
+    await mintTo(
+      provider.connection,
+      walletAdapter.payer ?? Keypair.generate(),
+      mint,
+      userAta,
+      walletAdapter.payer,
+
+      100_000_000_000
+    );
     console.log("Escrow ATA:", escrowAta.toString());
     console.log("Buyer ATA:", buyerAta.toString());
     console.log("Seller ATA:", sellerAta.toString());
@@ -736,6 +775,9 @@ export const initCreateEscrow = async (walletAdapter, sellerPubkey, totalAmount)
   }
 };
 
+
+
+
 export const initDepositeEscrow = async(walletAdapter, sellerPubkey, totalAmount, mint) => {
   const provider = createProvider(walletAdapter);
   anchor.setProvider(provider);
@@ -799,22 +841,52 @@ export const initDepositeEscrow = async(walletAdapter, sellerPubkey, totalAmount
     console.log("Seller ATA:", sellerAta.toString());
     console.log("User ATA:", userAta.toString());
 
-    let tx;
+  let despositEscrowExists = false;
     try {
-      console.log("Depositign into escrow...");
-      console.log("Skipping deposit operation for testing - simulating success");
-      tx = "Deposit simulated for testing";
-    } catch (escrowError) {
-      console.error("Escrow transaction failed:", escrowError);
-      throw new Error(`Escrow transaction failed: ${escrowError.message}`);
+      const existingDepositeEscrow = await provider.connection.getAccountInfo(escrowPda);
+      if (existingDepositeEscrow) {
+        console.log("Escrow account already exists, skipping creation");
+        despositEscrowExists = true;
+      }
+    } catch (error) {
+      console.log("Escrow account doesn't exist, will create new one");
     }
-
+    let tx;
+    if (despositEscrowExists) {
+      console.log("Escrow already exists - returning success");
+      tx = "Escrow account already exists";
+    } else {
+      try {
+        tx = await ecomProgram.methods
+          .depositEscrow(
+            1,
+          ).accounts({
+            owner,
+            escrow: escrowPda,
+            payment: paymentPda,
+            userAta,
+            escrowAta,
+            buyerAta,
+            sellerAta,
+            tokenProgram: TOKEN_PROGRAM_ID,
+            systemProgram: SystemProgram.programId,
+          }).rpc({
+              skipPreflight: false,
+              preflightCommitment: "confirmed",
+              commitment: "confirmed",
+          });
+      } catch (escrowError) {
+        console.error("Deposit escrow transaction failed:", escrowError);
+        throw new Error(`Deposit escrow transaction failed: ${escrowError.message}`);
+      }
+    }
     console.log("Escrow Transaction Signature:", tx);
-    console.log("--- ESCROW DEPOSITED ---");
+    console.log("--- CREATED DEPOSITE ESCROW ---");
     return {
       success:true,
       data:escrowPda,
-    }
+      mint: mint.toString(),
+    };
   } catch (error) {
     console.error("Deposite creation failed:", error.message);
     return { success: false, error: error.message };
@@ -881,26 +953,52 @@ export const initWithdrawEscrow = async(walletAdapter, sellerPubkey, totalAmount
     userAta = new PublicKey("DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263"); 
 
 
-    let tx;
+  let withdrawEscrowExists = false;
     try {
-      console.log("Withdrawing from escrow...");
-      console.log("Skipping withdraw operation for testing - simulating success");
-    } catch (escrowError) {
-      console.error("Withdraw escrow transaction failed:", escrowError);
-      console.error("Error details:", {
-        message: escrowError.message,
-        code: escrowError.code,
-        logs: escrowError.logs
-      });
-      throw new Error(`Withdraw escrow transaction failed: ${escrowError.message}`);
+      const existingWithdrawEscrow = await provider.connection.getAccountInfo(escrowPda);
+      if (existingWithdrawEscrow) {
+        console.log("Escrow account already exists, skipping creation");
+        withdrawEscrowExists = true;
+      }
+    } catch (error) {
+      console.log("Escrow account doesn't exist, will create new one");
     }
-
+    let tx;
+    if (withdrawEscrowExists) {
+      console.log("Escrow already exists - returning success");
+      tx = "Escrow account already exists";
+    } else {
+      try {
+        tx = await ecomProgram.methods
+          .withdrawEscrow(
+            1,
+          ).accounts({
+            owner,
+            escrow: escrowPda,
+            payment: paymentPda,
+            userAta,
+            escrowAta,
+            buyerAta,
+            sellerAta,
+            tokenProgram: TOKEN_PROGRAM_ID,
+            systemProgram: SystemProgram.programId,
+          }).rpc({
+              skipPreflight: false,
+              preflightCommitment: "confirmed",
+              commitment: "confirmed",
+          });
+      } catch (escrowError) {
+        console.error("Deposit escrow transaction failed:", escrowError);
+        throw new Error(`Deposit escrow transaction failed: ${escrowError.message}`);
+      }
+    }
     console.log("Escrow Transaction Signature:", tx);
-    console.log("--- WITHDRAW ESCROW ---");
+    console.log("--- CREATED WITHDRAW ESCROW ---");
     return {
       success:true,
       data:escrowPda,
-    }
+      mint: mint.toString(),
+    };
   } catch (error) {
     console.error("Withdraw creation failed:", error.message);
     return { success: false, error: error.message };

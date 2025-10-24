@@ -13,6 +13,10 @@
   "packageManager": "pnpm@10.17.1",
   "dependencies": {
     "@coral-xyz/anchor": "^0.30.1",
+    "@metaplex-foundation/mpl-token-metadata": "^3.4.0",
+    "@metaplex-foundation/umi": "^1.4.1",
+    "@metaplex-foundation/umi-bundle-defaults": "^1.4.1",
+    "@metaplex-foundation/umi-storage-mock": "^1.4.1",
     "@solana/spl-token": "^0.4.13",
     "@solana/web3.js": "^1.98.0",
     "@supabase/supabase-js": "^2.49.1",
