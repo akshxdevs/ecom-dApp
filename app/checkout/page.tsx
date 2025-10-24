@@ -12,8 +12,8 @@ export default function(){
     const [isClient, setIsClient] = useState(false);
     const [balances, setBalances] = useState<any>(null);
     const [escrowPda, setEscrowPda] = useState<string | null>(null);
-    const wallet = useWallet();
-    const {publicKey,signAllTransactions,signTransaction} = wallet;
+    let walletAdapter = useWallet();
+    const { publicKey, signTransaction, signAllTransactions, connected } = walletAdapter;
     const {sellerPubkey} = useSellerPubkey();
     
     useEffect(()=>{
@@ -33,6 +33,12 @@ export default function(){
             console.log("Missing required data for balance fetch");
             return;
         }
+          const wallet = {
+            publicKey,
+            signTransaction,
+            signAllTransactions,
+            payer: { publicKey },  
+        };
 
         try {
             const balanceResult = await fetchAccountBalances(
@@ -54,11 +60,20 @@ export default function(){
     };
 
     const handlePayment = async() => {
+
+        const wallet = {
+            publicKey,
+            signTransaction,
+            signAllTransactions,
+            payer: walletAdapter,  
+        };
+
         if (!publicKey) {
             toast.error("Please connect your wallet first");
             return;
         }
         if (!sellerPubkey) {
+            
             toast.error("Seller information not available");
             return;
         }
@@ -66,25 +81,16 @@ export default function(){
             toast.error("Invalid total amount");
             return;
         }
-        const walletAdapter = wallet;
         if (!walletAdapter || !walletAdapter.publicKey) {
             toast.error("Wallet not properly connected");
             return;
         }
         try {
             const result = await initCreatePayment(walletAdapter,totalAmount);
-            console.log("Payment Details: ",result);
-            
             if (result.success) {
-                console.log("About to call initCreateEscrow with:", {
-                    walletAdapter,
-                    sellerPubkey: sellerPubkey.toString(),
-                    totalAmount
-                });
-                const escrowInit = await initCreateEscrow(walletAdapter,sellerPubkey.toString(),totalAmount);
+                const escrowInit = await initCreateEscrow(wallet,sellerPubkey.toString(),totalAmount);
                 console.log("Escrow Details: ",escrowInit);
-                
-                if (escrowInit.success) {
+                if (escrowInit && escrowInit.success) {
                     toast.success("Escrow created successfully!");
                     
                     if (escrowInit.data) {
@@ -94,23 +100,23 @@ export default function(){
                             fetchBalances();
                         }, 1000);
                     }
-                    const depositeEscrow = await initDepositeEscrow(walletAdapter, sellerPubkey.toString(), totalAmount, escrowInit.mint);
-                    console.log("Escrow Details: ",depositeEscrow);
+                    // const depositeEscrow = await initDepositeEscrow(walletAdapter, sellerPubkey.toString(), totalAmount, escrowInit.mint);
+                    // console.log("Escrow Details: ",depositeEscrow);
                     
-                    if (depositeEscrow.success) {
-                        toast.success("Deposit escrow successful!"); 
-                    } else {
-                        toast.error(`Deposit escrow failed: ${depositeEscrow.error}`);
-                    }
+                    // if (depositeEscrow.success) { 
+                    //     toast.success("Deposit escrow successful!"); 
+                    // } else {
+                    //     toast.error(`Deposit escrow failed: ${depositeEscrow.error}`);
+                    // }
                     
-                    const withdrawEscrow = await initWithdrawEscrow(walletAdapter, sellerPubkey.toString(), totalAmount, escrowInit.mint);
-                    console.log("Escrow Details: ",withdrawEscrow);
+                    // const withdrawEscrow = await initWithdrawEscrow(walletAdapter, sellerPubkey.toString(), totalAmount, escrowInit.mint);
+                    // console.log("Escrow Details: ",withdrawEscrow);
                     
-                    if (withdrawEscrow.success) {
-                        toast.success("Withdraw escrow successful!"); 
-                    } else {
-                        toast.error(`Withdraw escrow failed: ${withdrawEscrow.error}`);
-                    }
+                    // if (withdrawEscrow.success) {
+                    //     toast.success("Withdraw escrow successful!"); 
+                    // } else {
+                    //     toast.error(`Withdraw escrow failed: ${withdrawEscrow.error}`);
+                    // }
                     
                     const fetchPaymentConfirmation = await fetchConfirmPayment(walletAdapter);
                     console.log("Payment Confirmation: ",fetchPaymentConfirmation);
@@ -121,7 +127,7 @@ export default function(){
                         toast.error(`Payment confirmation failed: ${fetchPaymentConfirmation.error}`);
                     }
                 } else {
-                    toast.error(`Escrow creation failed: ${escrowInit.error}`);
+                    toast.error(`Escrow creation failed: ${escrowInit?.error || 'Unknown error'}`);
                 }
             } else {
                 toast.error(`Payment creation failed: ${result.error}`);
